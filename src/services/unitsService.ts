@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { seedUnitWithTasks } from './seedUnit'
 
 // ─── Tipos ───────────────────────────────────────────────────────────
 
@@ -102,7 +103,17 @@ export async function createUnit(data: CreateUnitData): Promise<Unit> {
     .single()
 
   if (error) throw error
-  return created as Unit
+  const unit = created as Unit
+
+  // Popula automaticamente com as tarefas reais do processo de implantação.
+  // Melhor-esforço: a unidade já foi salva, então não abortamos por falha no seed.
+  try {
+    await seedUnitWithTasks(unit.id, unit.inauguration_date)
+  } catch (seedErr) {
+    console.error('[createUnit] Falha ao popular tarefas — verifique a migration do Fase 0:', seedErr)
+  }
+
+  return unit
 }
 
 export async function updateUnit(id: string, data: UpdateUnitData): Promise<Unit> {
