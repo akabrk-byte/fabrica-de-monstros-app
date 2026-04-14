@@ -1,0 +1,208 @@
+{
+  "main": {
+    "id": "47316a1707103114",
+    "type": "split",
+    "children": [
+      {
+        "id": "5fef010b1ec45ced",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "b22c026cd9124909",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Visualização em gráfico"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "5da372c08cb7fb6c",
+    "type": "split",
+    "children": [
+      {
+        "id": "b31aeb497c886c43",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1180399af4b8f221",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Explorador de arquivos"
+            }
+          },
+          {
+            "id": "102838289164e0ba",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Procurar"
+            }
+          },
+          {
+            "id": "585c145fc5e5c8ee",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Marcadores"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "970a4cc9495288e7",
+    "type": "split",
+    "children": [
+      {
+        "id": "f060482f4407dc5c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "503d14f378f8ab4d",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Links inversos"
+            }
+          },
+          {
+            "id": "e567b055d3e4eb25",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Links de saída"
+            }
+          },
+          {
+            "id": "1a70f01660e8f2e7",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Etiquetas"
+            }
+          },
+          {
+            "id": "3bca339d81ab7bdd",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Todas as propriedades"
+            }
+          },
+          {
+            "id": "50f6b5815f4871a5",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Sumário"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Abrir a troca rápida": false,
+      "graph:Abrir visualização em gráfico": false,
+      "canvas:Criar novo canvas": false,
+      "daily-notes:Abrir a nota de hoje": false,
+      "templates:Inserir modelo": false,
+      "command-palette:Abrir paleta de comandos": false,
+      "bases:Criar nova base": false
+    }
+  },
+  "active": "b22c026cd9124909",
+  "lastOpenFiles": [
+    "dist/index.html",
+    "dist/assets/index-sNN4EcyY.js",
+    "dist/assets/index-Bu6JW01D.css",
+    "dist/assets",
+    "dist/favicon.svg",
+    "dist/icons.svg",
+    "dist",
+    "node_modules/@supabase/auth-js/dist/module/lib/webauthn.errors.js",
+    "node_modules/@supabase/auth-js/dist/module/lib/local-storage.js",
+    "node_modules/@supabase/auth-js/dist/module/lib/polyfills.js",
+    "node_modules/iceberg-js/dist/index.mjs",
+    "node_modules/@supabase/auth-js/dist/module/lib/version.js",
+    "node_modules/@supabase/auth-js/dist/module/lib/fetch.js",
+    "node_modules/@supabase/auth-js/README.md",
+    "node_modules/@supabase/phoenix/priv/static/phoenix.png",
+    "node_modules/@supabase/phoenix/README.md",
+    "node_modules/@supabase/phoenix/LICENSE.md",
+    "node_modules/@supabase/functions-js/README.md",
+    "node_modules/@supabase/postgrest-js/README.md",
+    "node_modules/iceberg-js/README.md",
+    "node_modules/react-router/LICENSE.md",
+    "node_modules/react-router/CHANGELOG.md",
+    "node_modules/react-router-dom/LICENSE.md",
+    "node_modules/cookie/README.md",
+    "node_modules/react-router-dom/README.md",
+    "graphify-out/GRAPH_REPORT.md"
+  ]
+}

@@ -1,0 +1,394 @@
+/* ── Layout ──────────────────────────────────────────────────────── */
+.dash-content {
+  flex: 1;
+  padding: 28px 32px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+
+  @media (max-width: 640px) {
+    padding: 20px 16px 40px;
+    gap: 24px;
+  }
+}
+
+/* ── KPI grid ────────────────────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
+.kpi-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 20px 18px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: box-shadow 0.15s;
+
+  &:hover {
+    box-shadow: var(--shadow);
+  }
+}
+
+.kpi-card--danger {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.03);
+}
+
+.kpi-value {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+
+  @media (max-width: 640px) {
+    font-size: 30px;
+  }
+}
+
+.kpi-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+  margin-top: 4px;
+}
+
+.kpi-sub {
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* ── Seção genérica ──────────────────────────────────────────────── */
+.dash-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dash-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dash-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-h);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.dash-section-count {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text);
+  margin-left: 6px;
+}
+
+.dash-section-sub {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.dash-empty {
+  font-size: 14px;
+  color: var(--text);
+  margin: 0;
+  padding: 16px 0;
+}
+
+/* ── Tabela de unidades ──────────────────────────────────────────── */
+.table-wrapper {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  overflow-x: auto;
+}
+
+.units-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  min-width: 500px;
+}
+
+.units-table thead {
+  background: var(--code-bg);
+}
+
+.units-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  padding: 10px 14px;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.units-table td {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+  color: var(--text-h);
+}
+
+/* Row states */
+.unit-row {
+  cursor: pointer;
+  transition: background 0.1s;
+
+  &:hover td {
+    background: var(--code-bg);
+  }
+}
+
+.unit-row--red td {
+  background: rgba(239, 68, 68, 0.04);
+}
+
+.unit-row--red:hover td {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.unit-row--yellow td {
+  background: rgba(245, 158, 11, 0.04);
+}
+
+.unit-row--yellow:hover td {
+  background: rgba(245, 158, 11, 0.08);
+}
+
+/* Unit name cell */
+.unit-row-name {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.unit-row-city,
+.unit-row-date,
+.unit-row-status {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.unit-row-days {
+  white-space: nowrap;
+}
+
+/* Alert dot */
+.alert-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.alert-dot--red    { background: #ef4444; }
+.alert-dot--yellow { background: #f59e0b; }
+
+/* Alert badge */
+.alert-badge {
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.alert-badge--red    { background: rgba(239,68,68,.12); color: #ef4444; }
+.alert-badge--yellow { background: rgba(245,158,11,.12); color: #d97706; }
+
+/* Days tag */
+.days-tag {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.days-tag--red    { color: #ef4444; font-weight: 600; }
+.days-tag--yellow { color: #d97706; font-weight: 500; }
+.days-tag--muted  { color: var(--text); opacity: 0.6; }
+
+/* Progress cell */
+.progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 110px;
+}
+
+.progress-cell-pct {
+  font-size: 13px;
+  color: var(--text-h);
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: right;
+}
+
+.progress-cell-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-cell-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.3s;
+}
+
+.no-tasks {
+  color: var(--text);
+  opacity: 0.5;
+}
+
+/* ── Tarefas críticas ────────────────────────────────────────────── */
+.critical-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.critical-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--code-bg);
+  }
+}
+
+.critical-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.critical-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.critical-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.critical-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.critical-day {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.critical-unit {
+  color: var(--text);
+}
+
+.critical-date {
+  color: var(--text);
+}
+
+.critical-date--overdue {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+/* ── Reutilização de status badges de Units.css ──────────────────── */
+/* (definidos em Units.css, garantidos aqui para independência) */
+.unit-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 99px;
+  width: fit-content;
+  white-space: nowrap;
+}
+
+.unit-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.unit-status--planejamento  { background: var(--code-bg); color: var(--text); }
+.unit-status--planejamento::before { background: var(--text); }
+
+.unit-status--em_andamento  { background: rgba(59,130,246,.12); color: #3b82f6; }
+.unit-status--em_andamento::before { background: #3b82f6; }
+
+.unit-status--inaugurada    { background: rgba(16,185,129,.12); color: #10b981; }
+.unit-status--inaugurada::before { background: #10b981; }
+
+.unit-status--cancelada     { background: rgba(239,68,68,.10);  color: #ef4444; }
+.unit-status--cancelada::before { background: #ef4444; }
+
+/* status das tarefas */
+.unit-status--não_iniciado  { background: var(--code-bg); color: var(--text); }
+.unit-status--não_iniciado::before { background: var(--text); }
+
+.unit-status--bloqueado     { background: rgba(239,68,68,.10); color: #ef4444; }
+.unit-status--bloqueado::before { background: #ef4444; }
+
+/* ── Utilitários responsivos ─────────────────────────────────────── */
+@media (max-width: 640px) {
+  .hide-mobile { display: none; }
+}
