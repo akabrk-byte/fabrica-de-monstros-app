@@ -7,7 +7,7 @@ interface AppHeaderProps {
   title: string
 }
 
-export function AppHeader({ title }: AppHeaderProps) {
+export function AppHeader({ title: _title }: AppHeaderProps) {
   const navigate = useNavigate()
   const { user, signOut } = useAuthContext()
 
@@ -21,7 +21,21 @@ export function AppHeader({ title }: AppHeaderProps) {
 
   return (
     <header className="page-header">
-      <span className="page-name">{title}</span>
+      {/* Logo */}
+      <NavLink to="/dashboard" className="page-header-logo" aria-label="Fábrica de Monstros — Dashboard">
+        <img
+          src="https://academiasfabricademonstros.com.br/wp-content/uploads/2025/09/logo.png"
+          alt="Fábrica de Monstros"
+          className="page-header-logo-img"
+          onError={(e) => {
+            const img = e.currentTarget
+            img.style.display = 'none'
+            const fallback = img.nextElementSibling as HTMLElement | null
+            if (fallback) fallback.style.display = 'block'
+          }}
+        />
+        <span className="page-name" style={{ display: 'none' }}>FDM</span>
+      </NavLink>
 
       <nav className="page-header-nav" aria-label="Navegação principal">
         <NavLink
@@ -43,7 +57,7 @@ export function AppHeader({ title }: AppHeaderProps) {
         <button
           className="btn btn-secondary"
           onClick={handleSignOut}
-          style={{ padding: '6px 16px', fontSize: '14px' }}
+          style={{ padding: '6px 14px', fontSize: '12px' }}
         >
           Sair
         </button>

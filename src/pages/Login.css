@@ -1,4 +1,4 @@
-/* ── Página de login ─────────────────────────────────────── */
+/* ── Login page ───────────────────────────────────────────────────── */
 .login-page {
   min-height: 100svh;
   display: flex;
@@ -6,9 +6,26 @@
   justify-content: center;
   padding: 24px;
   background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background radial glow */
+.login-page::before {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(229, 57, 0, 0.06) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .login-card {
+  position: relative;
   width: 100%;
   max-width: 400px;
   display: flex;
@@ -16,41 +33,59 @@
   gap: 28px;
 }
 
-/* ── Cabeçalho ───────────────────────────────────────────── */
+/* ── Header ───────────────────────────────────────────────────────── */
 .login-header {
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 16px;
+}
+
+.login-logo {
+  height: 48px;
+  width: auto;
+  filter: brightness(1.05);
 }
 
 .login-brand {
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
+  font-family: var(--heading);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
 .login-title {
-  font-size: 28px;
-  font-weight: 600;
+  font-family: var(--heading);
+  font-size: 32px;
+  font-weight: 800;
   color: var(--text-h);
-  letter-spacing: -0.5px;
+  letter-spacing: 0.02em;
   margin: 0;
+  text-transform: uppercase;
 }
 
 .login-subtitle {
-  font-size: 15px;
-  color: var(--text);
+  font-size: 14px;
+  color: var(--text-muted);
   margin: 0;
+  line-height: 1.55;
 }
 
-/* ── Formulário ──────────────────────────────────────────── */
+/* ── Form ─────────────────────────────────────────────────────────── */
 .login-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
 }
 
 .field {
@@ -60,33 +95,36 @@
 }
 
 .field-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-h);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .field-input {
-  font-size: 15px;
+  font-size: 14px;
   font-family: inherit;
-  padding: 10px 12px;
+  padding: 11px 13px;
   border-radius: 8px;
-  border: 1.5px solid var(--border);
-  background: var(--bg);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface-2);
   color: var(--text-h);
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 
   &:focus {
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(229, 57, 0, 0.12);
   }
 
   &::placeholder {
-    color: var(--text);
-    opacity: 0.5;
+    color: var(--text-muted);
   }
 
   &.field-input--error {
     border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.10);
 
     &:focus {
       border-color: #ef4444;
@@ -94,10 +132,10 @@
   }
 }
 
-/* ── Erro ────────────────────────────────────────────────── */
+/* ── Error message ────────────────────────────────────────────────── */
 .login-error {
-  font-size: 14px;
-  color: #ef4444;
+  font-size: 13px;
+  color: #f87171;
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 8px;
@@ -105,16 +143,16 @@
   margin: 0;
 }
 
-/* ── Botão submit (reutiliza .btn do Home.css) ───────────── */
+/* ── Full-width button ────────────────────────────────────────────── */
 .btn-block {
   width: 100%;
 }
 
-/* ── Rodapé do card ──────────────────────────────────────── */
+/* ── Footer ───────────────────────────────────────────────────────── */
 .login-footer {
   text-align: center;
-  font-size: 14px;
-  color: var(--text);
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .login-footer button {
@@ -123,10 +161,13 @@
   color: var(--accent);
   cursor: pointer;
   font-family: inherit;
-  font-size: 14px;
+  font-size: 13px;
   padding: 0;
+  font-weight: 600;
+  transition: color 0.15s;
 
   &:hover {
+    color: var(--accent-light);
     text-decoration: underline;
   }
 

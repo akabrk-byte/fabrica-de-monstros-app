@@ -1,17 +1,34 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppHeader } from '../components/AppHeader'
 import {
-  listUnits,
-  listTaskStats,
-  createUnit,
-  type Unit,
-  type TaskStats,
-  type CreateUnitData,
+  listUnits, listTaskStats, createUnit,
+  type Unit, type TaskStats, type CreateUnitData,
 } from '../services/unitsService'
-import '../pages/Home.css'   // .btn .btn-primary .btn-secondary
+import { seedUnitWithTasks } from '../services/seedUnit'
+import { TASK_TEMPLATES } from '../data/taskTemplates'
+import '../pages/Home.css'
 import './pages.css'
 import './Units.css'
+
+// ─── Dados de preview das fases ──────────────────────────────────────
+
+interface PhasePreview { fase_order: number; fase_nome: string; count: number }
+
+const PHASE_PREVIEW: PhasePreview[] = (() => {
+  const map = new Map<number, PhasePreview>()
+  for (const t of TASK_TEMPLATES) {
+    const entry = map.get(t.fase_order) ?? { fase_order: t.fase_order, fase_nome: t.fase_nome, count: 0 }
+    entry.count++
+    map.set(t.fase_order, entry)
+  }
+  return Array.from(map.values()).sort((a, b) => a.fase_order - b.fase_order)
+})()
+
+const PHASE_PREVIEW_COLORS: Record<number, string> = {
+  0: '#6366f1', 1: '#8b5cf6', 2: '#3b82f6',
+  3: '#f59e0b', 4: '#10b981', 5: '#6b7280',
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -88,14 +105,7 @@ function UnitCard({ unit, stats, onClick }: { unit: Unit; stats: TaskStats; onCl
   )
 }
 
-// ─── Formulário inicial ──────────────────────────────────────────────
-
-const EMPTY_FORM: CreateUnitData = {
-  name: '',
-  city: '',
-  state: '',
-  inauguration_date: '',
-}
+// ─── Dados iniciais do formulário ─────────────────────────────────────
 
 const BR_STATES = [
   'AC','AL','AM','AP','BA','CE','DF','ES','GO',
@@ -103,19 +113,32 @@ const BR_STATES = [
   'RJ','RN','RO','RR','RS','SC','SE','SP','TO',
 ]
 
+const EMPTY_FORM: CreateUnitData = { name: '', city: '', state: '', inauguration_date: '' }
+
+// Data mínima de inauguração: 30 dias a partir de hoje
+function minInaugDate(): string {
+  const d = new Date()
+  d.setDate(d.getDate() + 30)
+  return d.toISOString().split('T')[0]
+}
+
 // ─── Página principal ────────────────────────────────────────────────
 
 export default function Units() {
   const navigate = useNavigate()
-  const [units,      setUnits]      = useState<Unit[]>([])
-  const [statsMap,   setStatsMap]   = useState<Map<string, TaskStats>>(new Map())
-  const [loading,    setLoading]    = useState(true)
-  const [loadError,  setLoadError]  = useState<string | null>(null)
+  const [units,     setUnits]     = useState<Unit[]>([])
+  const [statsMap,  setStatsMap]  = useState<Map<string, TaskStats>>(new Map())
+  const [loading,   setLoading]   = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
-  const [showModal,  setShowModal]  = useState(false)
-  const [form,       setForm]       = useState<CreateUnitData>(EMPTY_FORM)
-  const [formError,  setFormError]  = useState('')
-  const [creating,   setCreating]   = useState(false)
+  // ── Wizard ────────────────────────────────────────────────────────────
+  const [showModal,    setShowModal]    = useState(false)
+  const [wizardStep,   setWizardStep]   = useState<1 | 2>(1)
+  const [form,         setForm]         = useState<CreateUnitData>(EMPTY_FORM)
+  const [formError,    setFormError]    = useState('')
+  const [creating,     setCreating]     = useState(false)
+  const [createError,  setCreateError]  = useState('')
+  const [createdUnit,  setCreatedUnit]  = useState<Unit | null>(null)
 
   // ── Carga de dados ─────────────────────────────────────────────────
 
@@ -143,24 +166,75 @@ export default function Units() {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  // ── Modal ──────────────────────────────────────────────────────────
+  // ── Modal helpers ──────────────────────────────────────────────────
 
-  function openModal()  { setForm(EMPTY_FORM); setFormError(''); setShowModal(true) }
-  function closeModal() { setShowModal(false) }
-
-  const handleCreate = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!form.name.trim()) { setFormError('Informe o nome da unidade.'); return }
-
-    setCreating(true)
+  function openModal() {
+    setForm(EMPTY_FORM)
     setFormError('')
+    setCreateError('')
+    setWizardStep(1)
+    setCreatedUnit(null)
+    setCreating(false)
+    setShowModal(true)
+  }
+
+  function closeModal() {
+    if (creating) return
+    setShowModal(false)
+  }
+
+  // ── Step 1: Avançar ────────────────────────────────────────────────
+
+  function handleStep1Next() {
+    if (!form.name.trim()) {
+      setFormError('Informe o nome da unidade.')
+      return
+    }
+    if (!form.inauguration_date) {
+      setFormError('Informe a data de inauguração.')
+      return
+    }
+    const date    = new Date(form.inauguration_date + 'T00:00:00')
+    const today   = new Date(); today.setHours(0, 0, 0, 0)
+    const minDate = new Date(today.getTime() + 30 * 86_400_000)
+    if (date < minDate) {
+      setFormError('A data de inauguração deve ser pelo menos 30 dias no futuro.')
+      return
+    }
+    setFormError('')
+    setWizardStep(2)
+  }
+
+  // ── Step 2: Criar unidade + seed ──────────────────────────────────
+
+  const handleCreate = async () => {
+    setCreating(true)
+    setCreateError('')
     try {
-      const created = await createUnit(form)
-      setUnits((prev) => [created, ...prev])
-      setStatsMap((prev) => new Map(prev).set(created.id, { unit_id: created.id, total: 0, completed: 0 }))
-      closeModal()
-    } catch {
-      setFormError('Erro ao criar unidade. Tente novamente.')
+      let unit: Unit
+
+      if (createdUnit) {
+        // Retry: unidade já criada, apenas regenerar tarefas
+        unit = createdUnit
+      } else {
+        unit = await createUnit(form)
+        setCreatedUnit(unit)
+      }
+
+      if (unit.inauguration_date) {
+        await seedUnitWithTasks(unit.id, new Date(unit.inauguration_date + 'T00:00:00'))
+      }
+
+      navigate(`/units/${unit.id}`)
+    } catch (err) {
+      if (createdUnit) {
+        setCreateError(
+          'Erro ao gerar as tarefas. Tente novamente ou acesse a unidade e use o botão ⚙ para regenerar.'
+        )
+      } else {
+        setCreateError('Erro ao criar a unidade. Tente novamente.')
+        setCreatedUnit(null)
+      }
     } finally {
       setCreating(false)
     }
@@ -233,96 +307,187 @@ export default function Units() {
         )}
       </div>
 
-      {/* ── Modal: Nova unidade ────────────────────────────────── */}
+      {/* ── Modal: Nova unidade (wizard 2 etapas) ───────────────────── */}
       {showModal && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeModal()}>
+        <div
+          className="modal-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget && !creating) closeModal() }}
+        >
           <div className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
 
             <div className="modal-header">
-              <h2 className="modal-title" id="modal-title">Nova unidade</h2>
-              <button className="modal-close" onClick={closeModal} aria-label="Fechar">✕</button>
+              <div>
+                <h2 className="modal-title" id="modal-title">Nova unidade</h2>
+                <p className="wizard-step-label">Passo {wizardStep} de 2</p>
+              </div>
+              <button className="modal-close" onClick={closeModal}
+                disabled={creating} aria-label="Fechar">✕</button>
             </div>
 
-            <form className="modal-form" onSubmit={handleCreate} noValidate>
+            {/* ── Passo 1: Formulário ──────────────────────────────── */}
+            {wizardStep === 1 && (
+              <div className="modal-form">
 
-              <div className="field">
-                <label className="field-label" htmlFor="u-name">Nome *</label>
-                <input
-                  id="u-name"
-                  type="text"
-                  className={`field-input${!form.name.trim() && formError ? ' field-input--error' : ''}`}
-                  placeholder="Ex: Unidade Campinas — Taquaral"
-                  value={form.name}
-                  onChange={set('name')}
-                  autoFocus
-                  disabled={creating}
-                />
-              </div>
-
-              <div className="modal-row">
                 <div className="field">
-                  <label className="field-label" htmlFor="u-city">Cidade</label>
+                  <label className="field-label" htmlFor="u-name">Nome *</label>
                   <input
-                    id="u-city"
+                    id="u-name"
                     type="text"
-                    className="field-input"
-                    placeholder="Ex: Campinas"
-                    value={form.city}
-                    onChange={set('city')}
-                    disabled={creating}
+                    className={`field-input${formError && !form.name.trim() ? ' field-input--error' : ''}`}
+                    placeholder="Ex: Unidade Campinas — Taquaral"
+                    value={form.name}
+                    onChange={set('name')}
+                    autoFocus
                   />
                 </div>
 
+                <div className="modal-row">
+                  <div className="field">
+                    <label className="field-label" htmlFor="u-city">Cidade</label>
+                    <input
+                      id="u-city"
+                      type="text"
+                      className="field-input"
+                      placeholder="Ex: Campinas"
+                      value={form.city}
+                      onChange={set('city')}
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="field-label" htmlFor="u-state">Estado</label>
+                    <select
+                      id="u-state"
+                      className="field-input"
+                      value={form.state}
+                      onChange={set('state')}
+                    >
+                      <option value="">—</option>
+                      {BR_STATES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="field">
-                  <label className="field-label" htmlFor="u-state">Estado</label>
-                  <select
-                    id="u-state"
-                    className="field-input"
-                    value={form.state}
-                    onChange={set('state')}
-                    disabled={creating}
-                  >
-                    <option value="">—</option>
-                    {BR_STATES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                  <label className="field-label" htmlFor="u-date">
+                    Data prevista de inauguração *
+                  </label>
+                  <input
+                    id="u-date"
+                    type="date"
+                    className={`field-input${formError && !form.inauguration_date ? ' field-input--error' : ''}`}
+                    value={form.inauguration_date}
+                    onChange={set('inauguration_date')}
+                    min={minInaugDate()}
+                  />
+                  <span style={{ fontSize: '12px', color: 'var(--text)', opacity: 0.7 }}>
+                    Mínimo 30 dias a partir de hoje
+                  </span>
+                </div>
+
+                {formError && <p className="modal-error">{formError}</p>}
+
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-secondary" onClick={closeModal}>
+                    Cancelar
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={handleStep1Next}>
+                    Próximo →
+                  </button>
                 </div>
               </div>
+            )}
 
-              <div className="field">
-                <label className="field-label" htmlFor="u-date">Data prevista de inauguração</label>
-                <input
-                  id="u-date"
-                  type="date"
-                  className="field-input"
-                  value={form.inauguration_date}
-                  onChange={set('inauguration_date')}
-                  disabled={creating}
-                />
+            {/* ── Passo 2: Resumo + criação ────────────────────────── */}
+            {wizardStep === 2 && (
+              <div className="modal-form">
+
+                {/* Resumo da unidade */}
+                <div className="wizard-summary">
+                  <h4 className="wizard-summary-title">Resumo</h4>
+                  <div className="wizard-summary-row">
+                    <span className="wizard-summary-label">Nome</span>
+                    <span className="wizard-summary-value">{form.name}</span>
+                  </div>
+                  {(form.city || form.state) && (
+                    <div className="wizard-summary-row">
+                      <span className="wizard-summary-label">Localização</span>
+                      <span className="wizard-summary-value">
+                        {[form.city, form.state].filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  <div className="wizard-summary-row">
+                    <span className="wizard-summary-label">Inauguração</span>
+                    <span className="wizard-summary-value">
+                      {formatDate(form.inauguration_date ?? null)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Preview das tarefas */}
+                <div className="wizard-phases">
+                  <h4 className="wizard-phases-title">
+                    Tarefas que serão criadas
+                    <span className="wizard-phases-total">
+                      {TASK_TEMPLATES.length} tarefas
+                    </span>
+                  </h4>
+                  <div className="wizard-phases-list">
+                    {PHASE_PREVIEW.map((p) => (
+                      <div key={p.fase_order} className="wizard-phase-row">
+                        <span
+                          className="wizard-phase-dot"
+                          style={{ background: PHASE_PREVIEW_COLORS[p.fase_order] ?? '#6b7280' }}
+                        />
+                        <span className="wizard-phase-name">{p.fase_nome}</span>
+                        <span className="wizard-phase-count">{p.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {createError && <p className="modal-error">{createError}</p>}
+
+                <div className="modal-actions" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                  {!createdUnit && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => { setWizardStep(1); setCreateError('') }}
+                      disabled={creating}
+                    >
+                      ← Voltar
+                    </button>
+                  )}
+                  {createdUnit && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => navigate(`/units/${createdUnit.id}`)}
+                      disabled={creating}
+                    >
+                      Ir para a unidade →
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleCreate}
+                    disabled={creating}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    {creating
+                      ? 'Criando unidade e gerando tarefas...'
+                      : createdUnit
+                        ? 'Tentar gerar tarefas'
+                        : '✓ Criar unidade'}
+                  </button>
+                </div>
               </div>
+            )}
 
-              {formError && <p className="modal-error">{formError}</p>}
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={closeModal}
-                  disabled={creating}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={creating}
-                >
-                  {creating ? 'Criando...' : 'Criar unidade'}
-                </button>
-              </div>
-
-            </form>
           </div>
         </div>
       )}

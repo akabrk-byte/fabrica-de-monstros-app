@@ -7,8 +7,8 @@ import { type TaskStatus } from './tasksService'
 export interface DashboardKPIs {
   totalActive:          number   // planejamento + em_andamento
   inauguratingIn30Days: number   // inauguration_date entre hoje e hoje+30
-  totalOverdue:         number   // due_date < hoje AND status != 'concluído'
-  completionRate:       number   // % concluído geral (0-100)
+  totalOverdue:         number   // data_planejada < hoje AND status != 'concluido'
+  completionRate:       number   // % concluido geral (0-100)
 }
 
 export interface UnitDashboardRow {
@@ -19,13 +19,13 @@ export interface UnitDashboardRow {
 }
 
 export interface CriticalTask {
-  id:                       string
-  title:                    string
-  status:                   TaskStatus
-  due_date:                 string
-  days_before_inauguration: number | null
-  unit_id:                  string
-  unit_name:                string
+  id:            string
+  nome:          string
+  status:        TaskStatus
+  data_planejada: string
+  offset_dias:   number | null
+  unit_id:       string
+  unit_name:     string
 }
 
 export interface DashboardData {
@@ -44,35 +44,40 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 
     listUnits(),
 
-    // Tarefas atrasadas: due_date < hoje E não concluídas
+    // Tarefas atrasadas: data_planejada < hoje E não concluídas
     supabase
-      .from('tasks')
+      .from('unit_tasks')
       .select('unit_id')
-      .lt('due_date', todayStr)
-      .neq('status', 'concluído')
+      .lt('data_planejada', todayStr)
+      .neq('status', 'concluido')
       .then(({ data, error }) => {
-        if (error) throw error
+        if (error) {
+          console.error('[dashboardService] overdueRows query error:', error)
+          throw error
+        }
         return (data ?? []) as { unit_id: string }[]
       }),
 
-    // Top 5 urgentes: não concluídas, mais próximas do prazo, com nome da unidade
+    // Top 5 urgentes: não concluídas, mais próximas do prazo (sem join FK)
     supabase
-      .from('tasks')
-      .select('id, title, status, due_date, days_before_inauguration, unit_id, unit:units(id, name)')
-      .neq('status', 'concluído')
-      .not('due_date', 'is', null)
-      .order('due_date', { ascending: true })
+      .from('unit_tasks')
+      .select('id, nome, status, data_planejada, offset_dias, unit_id')
+      .neq('status', 'concluido')
+      .not('data_planejada', 'is', null)
+      .order('data_planejada', { ascending: true })
       .limit(5)
       .then(({ data, error }) => {
-        if (error) throw error
+        if (error) {
+          console.error('[dashboardService] critRows query error:', error)
+          throw error
+        }
         return (data ?? []) as {
-          id: string
-          title: string
-          status: string
-          due_date: string
-          days_before_inauguration: number | null
-          unit_id: string
-          unit: { id: string; name: string } | Array<{ id: string; name: string }> | null
+          id:             string
+          nome:           string
+          status:         string
+          data_planejada: string
+          offset_dias:    number | null
+          unit_id:        string
         }[]
       }),
   ])
@@ -121,15 +126,15 @@ export async function fetchDashboardData(): Promise<DashboardData> {
 
   // ── Tarefas críticas ──────────────────────────────────────────────────
   const criticalTasks: CriticalTask[] = critRows.map((row) => {
-    const u = Array.isArray(row.unit) ? row.unit[0] : row.unit
+    const unitMatch = units.find((u) => u.id === row.unit_id)
     return {
-      id:                       row.id,
-      title:                    row.title,
-      status:                   row.status as TaskStatus,
-      due_date:                 row.due_date,
-      days_before_inauguration: row.days_before_inauguration,
-      unit_id:                  row.unit_id,
-      unit_name:                u?.name ?? '—',
+      id:             row.id,
+      nome:           row.nome,
+      status:         row.status as TaskStatus,
+      data_planejada: row.data_planejada,
+      offset_dias:    row.offset_dias,
+      unit_id:        row.unit_id,
+      unit_name:      unitMatch?.name ?? '—',
     }
   })
 
@@ -143,7 +148,6 @@ export async function fetchDashboardData(): Promise<DashboardData> {
     }
     const la = level(a), lb = level(b)
     if (la !== lb) return la - lb
-    // Desempate: mais próximos primeiro
     if (a.daysUntil === null && b.daysUntil === null) return 0
     if (a.daysUntil === null) return 1
     if (b.daysUntil === null) return -1

@@ -1,14 +1,16 @@
 import {
   useState, useEffect, useCallback, useMemo,
-  type FormEvent, type CSSProperties,
+  type CSSProperties,
 } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { AppHeader } from '../components/AppHeader'
 import { getUnit, type Unit } from '../services/unitsService'
 import {
-  listMilestones, listTasksByUnit, updateTaskStatus, createTask,
-  type Task, type Milestone, type TaskStatus, type TaskCategory,
+  listTasksByUnit, updateTaskStatus, deleteTask,
+  type Task, type TaskStatus, type TaskCategory,
 } from '../services/tasksService'
+import { seedUnitWithTasks, deleteUnitTasks } from '../services/seedUnit'
+import { TaskManagerModal } from '../components/TaskManagerModal'
 import '../pages/Home.css'
 import './pages.css'
 import './UnitTimeline.css'
@@ -16,9 +18,9 @@ import './UnitTimeline.css'
 // ─── Constantes ──────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
-  não_iniciado: 'Não iniciado',
+  nao_iniciado: 'Não iniciado',
   em_andamento: 'Em andamento',
-  concluído:    'Concluído',
+  concluido:    'Concluído',
   bloqueado:    'Bloqueado',
 }
 
@@ -33,19 +35,19 @@ const CATEGORY_LABEL: Record<TaskCategory, string> = {
 }
 
 const CATEGORY_COLOR: Record<TaskCategory, { bg: string; color: string }> = {
-  jurídico:   { bg: 'rgba(124,58,237,.12)',  color: '#7c3aed' },
-  engenharia: { bg: 'rgba(234,88,12,.12)',   color: '#ea580c' },
-  compras:    { bg: 'rgba(8,145,178,.12)',   color: '#0891b2' },
-  marketing:  { bg: 'rgba(219,39,119,.12)',  color: '#db2777' },
-  operação:   { bg: 'rgba(22,163,74,.12)',   color: '#16a34a' },
-  sistemas:   { bg: 'rgba(37,99,235,.12)',   color: '#2563eb' },
-  rh:         { bg: 'rgba(217,119,6,.12)',   color: '#d97706' },
+  jurídico:   { bg: 'rgba(59,130,246,.14)',  color: '#60a5fa'  },
+  engenharia: { bg: 'rgba(249,115,22,.14)',  color: '#fb923c'  },
+  compras:    { bg: 'rgba(34,197,94,.14)',   color: '#4ade80'  },
+  marketing:  { bg: 'rgba(168,85,247,.14)',  color: '#c084fc'  },
+  operação:   { bg: 'rgba(234,179,8,.14)',   color: '#facc15'  },
+  sistemas:   { bg: 'rgba(6,182,212,.14)',   color: '#22d3ee'  },
+  rh:         { bg: 'rgba(236,72,153,.14)',  color: '#f472b6'  },
 }
 
 const STATUS_STYLE: Record<TaskStatus, CSSProperties> = {
-  não_iniciado: { background: 'var(--code-bg)', color: 'var(--text)' },
+  nao_iniciado: { background: 'var(--code-bg)', color: 'var(--text)' },
   em_andamento: { background: 'rgba(59,130,246,.14)', color: '#3b82f6' },
-  concluído:    { background: 'rgba(16,185,129,.14)', color: '#10b981' },
+  concluido:    { background: 'rgba(16,185,129,.14)', color: '#10b981' },
   bloqueado:    { background: 'rgba(239,68,68,.12)',  color: '#ef4444' },
 }
 
@@ -56,10 +58,17 @@ const UNIT_STATUS_LABEL: Record<Unit['status'], string> = {
   cancelada:    'Cancelada',
 }
 
-const ALL_STATUSES: TaskStatus[]   = ['não_iniciado', 'em_andamento', 'concluído', 'bloqueado']
-const ALL_CATEGORIES: TaskCategory[] = ['jurídico', 'engenharia', 'compras', 'marketing', 'operação', 'sistemas', 'rh']
+const PHASE_COLORS: Record<number, string> = {
+  0: '#6366f1',
+  1: '#8b5cf6',
+  2: '#3b82f6',
+  3: '#f59e0b',
+  4: '#10b981',
+  5: '#6b7280',
+}
 
-const EMPTY_ADD = { title: '', category: 'operação' as TaskCategory, due_date: '' }
+const ALL_STATUSES:    TaskStatus[]   = ['nao_iniciado', 'em_andamento', 'concluido', 'bloqueado']
+const ALL_CATEGORIES:  TaskCategory[] = ['jurídico', 'engenharia', 'compras', 'marketing', 'operação', 'sistemas', 'rh']
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -89,8 +98,8 @@ function dueDayLabel(days: number | null): string | null {
 }
 
 function isOverdue(task: Task): boolean {
-  if (!task.due_date || task.status === 'concluído') return false
-  const [y, m, d] = task.due_date.split('-').map(Number)
+  if (!task.data_planejada || task.status === 'concluido') return false
+  const [y, m, d] = task.data_planejada.split('-').map(Number)
   const due   = new Date(y, m - 1, d)
   const today = new Date(); today.setHours(0, 0, 0, 0)
   return due < today
@@ -110,29 +119,41 @@ function CategoryBadge({ category }: { category: TaskCategory }) {
 interface TaskCardProps {
   task:           Task
   onStatusChange: (id: string, s: TaskStatus) => void
+  onDeleteTask:   (id: string) => void
   updating:       boolean
+  deleting:       boolean
 }
 
-function TaskCard({ task, onStatusChange, updating }: TaskCardProps) {
-  const overdue   = isOverdue(task)
-  const dayLabel  = dueDayLabel(task.days_before_inauguration)
-  const done      = task.status === 'concluído'
-  const respName  = Array.isArray(task.responsible)
-    ? (task.responsible as { full_name: string }[])[0]?.full_name
-    : task.responsible?.full_name
+function TaskCard({ task, onStatusChange, onDeleteTask, updating, deleting }: TaskCardProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const overdue  = isOverdue(task)
+  const dayLabel = dueDayLabel(task.offset_dias)
+  const done     = task.status === 'concluido'
+
+  const handleDeleteClick = () => setConfirmDelete(true)
+  const handleDeleteConfirm = () => { onDeleteTask(task.id); setConfirmDelete(false) }
+  const handleDeleteCancel  = () => setConfirmDelete(false)
 
   return (
-    <div className={`task-card ${done ? 'task-card--done' : ''} ${updating ? 'task-card--updating' : ''} ${overdue ? 'task-card--overdue' : ''}`}
-      style={{ borderLeftColor: done ? '#10b981' : overdue ? '#ef4444' : 'var(--border)' }}>
-
+    <div
+      className={[
+        'task-card',
+        done     ? 'task-card--done'     : '',
+        updating ? 'task-card--updating' : '',
+        deleting ? 'task-card--deleting' : '',
+        overdue  ? 'task-card--overdue'  : '',
+      ].filter(Boolean).join(' ')}
+      style={{ borderLeftColor: done ? '#10b981' : overdue ? '#ef4444' : 'var(--border)' }}
+    >
       <div className="task-card-top">
-        <CategoryBadge category={task.category} />
+        <CategoryBadge category={task.categoria} />
         <div className="task-card-controls">
           {!done && (
             <button
               className="btn-complete"
-              onClick={() => onStatusChange(task.id, 'concluído')}
-              disabled={updating}
+              onClick={() => onStatusChange(task.id, 'concluido')}
+              disabled={updating || deleting}
               title="Marcar como concluído"
             >
               ✓ Concluir
@@ -143,54 +164,94 @@ function TaskCard({ task, onStatusChange, updating }: TaskCardProps) {
             style={STATUS_STYLE[task.status]}
             value={task.status}
             onChange={(e) => onStatusChange(task.id, e.target.value as TaskStatus)}
-            disabled={updating}
+            disabled={updating || deleting}
           >
             {ALL_STATUSES.map((s) => (
               <option key={s} value={s}>{STATUS_LABEL[s]}</option>
             ))}
           </select>
+          <button
+            className="btn-delete-task"
+            onClick={handleDeleteClick}
+            disabled={updating || deleting}
+            title="Remover tarefa"
+          >
+            ×
+          </button>
         </div>
       </div>
 
-      <p className={`task-title ${done ? 'task-title--done' : ''}`}>{task.title}</p>
+      <p className={`task-title ${done ? 'task-title--done' : ''}`}>{task.nome}</p>
 
       <div className="task-meta">
         {dayLabel && <span className="task-day-label">{dayLabel}</span>}
-        {task.due_date && (
+        {task.data_planejada && (
           <span className={`task-due-date ${overdue ? 'task-due-date--overdue' : ''}`}>
-            {overdue ? '⚠ Atrasado · ' : ''}{formatDate(task.due_date)}
+            {overdue ? '⚠ Atrasado · ' : ''}{formatDate(task.data_planejada)}
           </span>
         )}
-        {respName && <span className="task-responsible">{respName}</span>}
       </div>
+
+      {confirmDelete && (
+        <div className="task-delete-confirm">
+          <span className="task-delete-confirm-msg">
+            {done
+              ? 'Esta tarefa já foi concluída. Confirma a remoção?'
+              : 'Tem certeza que deseja remover esta tarefa?'}
+          </span>
+          <div className="task-delete-confirm-actions">
+            <button
+              className="btn-delete-confirm"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              {deleting ? 'Removendo...' : 'Remover'}
+            </button>
+            <button
+              className="btn-delete-cancel"
+              onClick={handleDeleteCancel}
+              disabled={deleting}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
+interface PhaseGroup {
+  fase_order: number
+  fase_nome:  string
+}
+
 interface PhaseSectionProps {
-  milestone:      Milestone
+  phase:          PhaseGroup
+  color:          string
   tasks:          Task[]
-  allTasks:       Task[]   // tasks pré-filtro, para progresso real
+  allTasks:       Task[]
   onStatusChange: (id: string, s: TaskStatus) => void
+  onDeleteTask:   (id: string) => void
   updatingIds:    Set<string>
-  onAddTask:      (milestoneId: string) => void
+  deletingIds:    Set<string>
+  onAddTask:      (faseOrder: number, faseNome: string) => void
   hasFilter:      boolean
 }
 
-function PhaseSection({ milestone, tasks, allTasks, onStatusChange, updatingIds, onAddTask, hasFilter }: PhaseSectionProps) {
-  const completed = allTasks.filter((t) => t.status === 'concluído').length
+function PhaseSection({ phase, color, tasks, allTasks, onStatusChange, onDeleteTask, updatingIds, deletingIds, onAddTask, hasFilter }: PhaseSectionProps) {
+  const completed = allTasks.filter((t) => t.status === 'concluido').length
   const total     = allTasks.length
   const pct       = total > 0 ? Math.round((completed / total) * 100) : null
 
-  // Com filtro ativo, oculta fases sem tarefas
   if (hasFilter && tasks.length === 0) return null
 
   return (
     <section className="phase-section">
       <div className="phase-header">
         <div className="phase-header-left">
-          <span className="phase-dot" style={{ background: milestone.color }} />
-          <h3 className="phase-name">{milestone.name}</h3>
+          <span className="phase-dot" style={{ background: color }} />
+          <h3 className="phase-name">{phase.fase_nome}</h3>
           {pct === 100 && <span className="phase-done-badge">Concluída</span>}
         </div>
         <div className="phase-header-right">
@@ -198,15 +259,14 @@ function PhaseSection({ milestone, tasks, allTasks, onStatusChange, updatingIds,
             <>
               <span className="phase-stats">{completed}/{total}</span>
               <div className="phase-progress-bar">
-                <div className="phase-progress-fill"
-                  style={{ width: `${pct}%`, background: milestone.color }} />
+                <div className="phase-progress-fill" style={{ width: `${pct}%`, background: color }} />
               </div>
             </>
           )}
           <button
             className="phase-add-btn"
-            onClick={() => onAddTask(milestone.id)}
-            title={`Adicionar tarefa em ${milestone.name}`}
+            onClick={() => onAddTask(phase.fase_order, phase.fase_nome)}
+            title={`Adicionar tarefa em ${phase.fase_nome}`}
           >
             +
           </button>
@@ -220,7 +280,9 @@ function PhaseSection({ milestone, tasks, allTasks, onStatusChange, updatingIds,
               key={task.id}
               task={task}
               onStatusChange={onStatusChange}
+              onDeleteTask={onDeleteTask}
               updating={updatingIds.has(task.id)}
+              deleting={deletingIds.has(task.id)}
             />
           ))}
         </div>
@@ -238,11 +300,10 @@ export default function UnitTimeline() {
   const navigate       = useNavigate()
 
   // ── Dados ────────────────────────────────────────────────────────────
-  const [unit,       setUnit]       = useState<Unit | null>(null)
-  const [milestones, setMilestones] = useState<Milestone[]>([])
-  const [tasks,      setTasks]      = useState<Task[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [loadError,  setLoadError]  = useState<string | null>(null)
+  const [unit,      setUnit]      = useState<Unit | null>(null)
+  const [tasks,     setTasks]     = useState<Task[]>([])
+  const [loading,   setLoading]   = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // ── Filtros ──────────────────────────────────────────────────────────
   const [filterStatus,   setFilterStatus]   = useState<TaskStatus | 'all'>('all')
@@ -250,13 +311,17 @@ export default function UnitTimeline() {
 
   // ── Atualizações otimistas ───────────────────────────────────────────
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
-  // ── Modal: nova tarefa ───────────────────────────────────────────────
-  const [showAdd,        setShowAdd]        = useState(false)
-  const [addMilestoneId, setAddMilestoneId] = useState('')
-  const [addForm,        setAddForm]        = useState(EMPTY_ADD)
-  const [addError,       setAddError]       = useState('')
-  const [addSubmitting,  setAddSubmitting]  = useState(false)
+  // ── Modal: gerenciar tarefas ─────────────────────────────────────────
+  const [showTaskManager, setShowTaskManager] = useState(false)
+  const [tmFaseOrder,     setTmFaseOrder]     = useState(0)
+  const [tmFaseNome,      setTmFaseNome]      = useState('')
+
+  // ── Regenerar tarefas ────────────────────────────────────────────────
+  const [showRegenConfirm, setShowRegenConfirm] = useState(false)
+  const [regenerating,     setRegenerating]     = useState(false)
+  const [regenError,       setRegenError]       = useState('')
 
   // ── Carga ─────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -264,13 +329,11 @@ export default function UnitTimeline() {
     setLoading(true)
     setLoadError(null)
     try {
-      const [u, ms, ts] = await Promise.all([
+      const [u, ts] = await Promise.all([
         getUnit(unitId),
-        listMilestones(),
         listTasksByUnit(unitId),
       ])
       setUnit(u)
-      setMilestones(ms)
       setTasks(ts)
     } catch {
       setLoadError('Não foi possível carregar os dados da unidade.')
@@ -281,9 +344,14 @@ export default function UnitTimeline() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  // Escape fecha modal
+  // Escape fecha modais
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowAdd(false) }
+    const fn = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowTaskManager(false)
+        setShowRegenConfirm(false)
+      }
+    }
     document.addEventListener('keydown', fn)
     return () => document.removeEventListener('keydown', fn)
   }, [])
@@ -293,11 +361,7 @@ export default function UnitTimeline() {
     const prev = tasks.find((t) => t.id === taskId)
     if (!prev) return
 
-    setTasks((ts) => ts.map((t) =>
-      t.id === taskId
-        ? { ...t, status: newStatus, completed_at: newStatus === 'concluído' ? new Date().toISOString() : null }
-        : t
-    ))
+    setTasks((ts) => ts.map((t) => t.id === taskId ? { ...t, status: newStatus } : t))
     setUpdatingIds((s) => new Set(s).add(taskId))
 
     try {
@@ -310,35 +374,43 @@ export default function UnitTimeline() {
     }
   }, [tasks])
 
-  // ── Criar tarefa ──────────────────────────────────────────────────────
-  const openAddModal = (milestoneId: string) => {
-    setAddMilestoneId(milestoneId)
-    setAddForm(EMPTY_ADD)
-    setAddError('')
-    setShowAdd(true)
+  // ── Remover tarefa ────────────────────────────────────────────────────
+  const handleDeleteTask = useCallback(async (taskId: string) => {
+    setDeletingIds((s) => new Set(s).add(taskId))
+    try {
+      await deleteTask(taskId)
+      setTasks((ts) => ts.filter((t) => t.id !== taskId))
+    } catch {
+      // silently restore — task stays in list
+    } finally {
+      setDeletingIds((s) => { const n = new Set(s); n.delete(taskId); return n })
+    }
+  }, [])
+
+  // ── Abrir modal de tarefas ────────────────────────────────────────────
+  const openAddModal = (faseOrder: number, faseNome: string) => {
+    setTmFaseOrder(faseOrder)
+    setTmFaseNome(faseNome)
+    setShowTaskManager(true)
   }
 
-  const handleAddTask = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!addForm.title.trim()) { setAddError('Informe o título da tarefa.'); return }
-    if (!unit) return
-
-    setAddSubmitting(true)
-    setAddError('')
+  // ── Regenerar tarefas ─────────────────────────────────────────────────
+  const handleRegenerate = async () => {
+    if (!unitId || !unit?.inauguration_date) {
+      setRegenError('Defina uma data de inauguração antes de regenerar.')
+      return
+    }
+    setRegenerating(true)
+    setRegenError('')
     try {
-      const created = await createTask({
-        unit_id:      unit.id,
-        milestone_id: addMilestoneId,
-        title:        addForm.title,
-        category:     addForm.category,
-        due_date:     addForm.due_date || undefined,
-      })
-      setTasks((prev) => [...prev, created])
-      setShowAdd(false)
+      await deleteUnitTasks(unitId)
+      await seedUnitWithTasks(unitId, new Date(unit.inauguration_date))
+      await loadData()
+      setShowRegenConfirm(false)
     } catch {
-      setAddError('Erro ao criar tarefa. Tente novamente.')
+      setRegenError('Erro ao regenerar tarefas. Tente novamente.')
     } finally {
-      setAddSubmitting(false)
+      setRegenerating(false)
     }
   }
 
@@ -348,32 +420,42 @@ export default function UnitTimeline() {
   const filteredTasks = useMemo(() =>
     tasks.filter((t) => {
       if (filterStatus   !== 'all' && t.status   !== filterStatus)   return false
-      if (filterCategory !== 'all' && t.category !== filterCategory) return false
+      if (filterCategory !== 'all' && t.categoria !== filterCategory) return false
       return true
     }),
   [tasks, filterStatus, filterCategory])
 
-  const tasksByMilestone = useMemo(() => {
-    const map = new Map<string, Task[]>()
+  const phases = useMemo(() => {
+    const map = new Map<number, PhaseGroup>()
+    for (const t of tasks) {
+      if (!map.has(t.fase_order)) {
+        map.set(t.fase_order, { fase_order: t.fase_order, fase_nome: t.fase_nome })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.fase_order - b.fase_order)
+  }, [tasks])
+
+  const tasksByPhase = useMemo(() => {
+    const map = new Map<number, Task[]>()
     for (const t of filteredTasks) {
-      const arr = map.get(t.milestone_id) ?? []
+      const arr = map.get(t.fase_order) ?? []
       arr.push(t)
-      map.set(t.milestone_id, arr)
+      map.set(t.fase_order, arr)
     }
     return map
   }, [filteredTasks])
 
-  const allTasksByMilestone = useMemo(() => {
-    const map = new Map<string, Task[]>()
+  const allTasksByPhase = useMemo(() => {
+    const map = new Map<number, Task[]>()
     for (const t of tasks) {
-      const arr = map.get(t.milestone_id) ?? []
+      const arr = map.get(t.fase_order) ?? []
       arr.push(t)
-      map.set(t.milestone_id, arr)
+      map.set(t.fase_order, arr)
     }
     return map
   }, [tasks])
 
-  const totalDone  = tasks.filter((t) => t.status === 'concluído').length
+  const totalDone  = tasks.filter((t) => t.status === 'concluido').length
   const totalTasks = tasks.length
   const totalPct   = totalTasks > 0 ? Math.round((totalDone / totalTasks) * 100) : 0
 
@@ -413,6 +495,13 @@ export default function UnitTimeline() {
               <span className={`unit-status unit-status--${unit.status}`}>
                 {UNIT_STATUS_LABEL[unit.status]}
               </span>
+              <button
+                className="tl-regen-btn"
+                onClick={() => { setRegenError(''); setShowRegenConfirm(true) }}
+                title="Regenerar tarefas"
+              >
+                ⚙
+              </button>
             </div>
             <h2 className="tl-unit-name">{unit.name}</h2>
             <div className="tl-unit-meta">
@@ -443,126 +532,131 @@ export default function UnitTimeline() {
             </div>
           )}
 
+          {/* ── Vazio: sem tarefas ──────────────────────────────────── */}
+          {totalTasks === 0 && (
+            <div className="units-feedback" style={{ flex: 'none', padding: '40px 0' }}>
+              <h3 className="units-feedback-title">Nenhuma tarefa cadastrada</h3>
+              <p className="units-feedback-desc">
+                Clique no ⚙ para gerar o template completo de implantação.
+              </p>
+            </div>
+          )}
+
           {/* ── Filtros ────────────────────────────────────────────── */}
-          <div className="tl-filters">
-            <select
-              className="tl-filter-select"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
-            >
-              <option value="all">Todos os status</option>
-              {ALL_STATUSES.map((s) => (
-                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-              ))}
-            </select>
-            <select
-              className="tl-filter-select"
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value as typeof filterCategory)}
-            >
-              <option value="all">Todas as categorias</option>
-              {ALL_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
-              ))}
-            </select>
-            {hasFilter && (
-              <button
-                className="tl-clear-filters"
-                onClick={() => { setFilterStatus('all'); setFilterCategory('all') }}
+          {totalTasks > 0 && (
+            <div className="tl-filters">
+              <select
+                className="tl-filter-select"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
               >
-                Limpar filtros
-              </button>
-            )}
-            <span className="tl-filter-count">
-              {filteredTasks.length} tarefa{filteredTasks.length !== 1 ? 's' : ''}
-              {hasFilter ? ' encontradas' : ''}
-            </span>
-          </div>
+                <option value="all">Todos os status</option>
+                {ALL_STATUSES.map((s) => (
+                  <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                ))}
+              </select>
+              <select
+                className="tl-filter-select"
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value as typeof filterCategory)}
+              >
+                <option value="all">Todas as categorias</option>
+                {ALL_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
+                ))}
+              </select>
+              {hasFilter && (
+                <button
+                  className="tl-clear-filters"
+                  onClick={() => { setFilterStatus('all'); setFilterCategory('all') }}
+                >
+                  Limpar filtros
+                </button>
+              )}
+              <span className="tl-filter-count">
+                {filteredTasks.length} tarefa{filteredTasks.length !== 1 ? 's' : ''}
+                {hasFilter ? ' encontradas' : ''}
+              </span>
+            </div>
+          )}
 
           {/* ── Fases ──────────────────────────────────────────────── */}
-          <div className="tl-phases">
-            {milestones.map((m) => (
-              <PhaseSection
-                key={m.id}
-                milestone={m}
-                tasks={tasksByMilestone.get(m.id) ?? []}
-                allTasks={allTasksByMilestone.get(m.id) ?? []}
-                onStatusChange={handleStatusChange}
-                updatingIds={updatingIds}
-                onAddTask={openAddModal}
-                hasFilter={hasFilter}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal: Nova tarefa ──────────────────────────────────────── */}
-      {showAdd && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowAdd(false)}>
-          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="add-task-title">
-            <div className="modal-header">
-              <h2 className="modal-title" id="add-task-title">Nova tarefa</h2>
-              <button className="modal-close" onClick={() => setShowAdd(false)} aria-label="Fechar">✕</button>
-            </div>
-            <form className="modal-form" onSubmit={handleAddTask} noValidate>
-              <div className="field">
-                <label className="field-label" htmlFor="t-title">Título *</label>
-                <input
-                  id="t-title"
-                  type="text"
-                  className={`field-input${!addForm.title.trim() && addError ? ' field-input--error' : ''}`}
-                  placeholder="Ex: Aprovação do projeto arquitetônico"
-                  value={addForm.title}
-                  onChange={(e) => setAddForm((f) => ({ ...f, title: e.target.value }))}
-                  autoFocus
-                  disabled={addSubmitting}
+          {phases.length > 0 && (
+            <div className="tl-phases">
+              {phases.map((phase) => (
+                <PhaseSection
+                  key={phase.fase_order}
+                  phase={phase}
+                  color={PHASE_COLORS[phase.fase_order] ?? '#6b7280'}
+                  tasks={tasksByPhase.get(phase.fase_order) ?? []}
+                  allTasks={allTasksByPhase.get(phase.fase_order) ?? []}
+                  onStatusChange={handleStatusChange}
+                  onDeleteTask={handleDeleteTask}
+                  updatingIds={updatingIds}
+                  deletingIds={deletingIds}
+                  onAddTask={openAddModal}
+                  hasFilter={hasFilter}
                 />
-              </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-              <div className="modal-row">
-                <div className="field">
-                  <label className="field-label" htmlFor="t-category">Categoria *</label>
-                  <select
-                    id="t-category"
-                    className="field-input"
-                    value={addForm.category}
-                    onChange={(e) => setAddForm((f) => ({ ...f, category: e.target.value as TaskCategory }))}
-                    disabled={addSubmitting}
-                  >
-                    {ALL_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label className="field-label" htmlFor="t-date">Prazo</label>
-                  <input
-                    id="t-date"
-                    type="date"
-                    className="field-input"
-                    value={addForm.due_date}
-                    onChange={(e) => setAddForm((f) => ({ ...f, due_date: e.target.value }))}
-                    disabled={addSubmitting}
-                  />
-                </div>
-              </div>
-
-              {addError && <p className="modal-error">{addError}</p>}
-
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary"
-                  onClick={() => setShowAdd(false)} disabled={addSubmitting}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={addSubmitting}>
-                  {addSubmitting ? 'Criando...' : 'Criar tarefa'}
-                </button>
-              </div>
-            </form>
+      {/* ── Modal: Confirmar regeneração ───────────────────────────────── */}
+      {showRegenConfirm && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowRegenConfirm(false) } }}
+        >
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="regen-title">
+            <div className="modal-header">
+              <h2 className="modal-title" id="regen-title">Regenerar tarefas?</h2>
+              <button className="modal-close" onClick={() => setShowRegenConfirm(false)} aria-label="Fechar">✕</button>
+            </div>
+            <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6, margin: 0 }}>
+              Isso irá <strong>apagar todas as tarefas atuais</strong> e recriar o template
+              completo de implantação com base na data de inauguração.
+              <br /><br />
+              Tarefas criadas manualmente e alterações de status serão perdidas.
+            </p>
+            {regenError && <p className="modal-error">{regenError}</p>}
+            <div className="modal-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowRegenConfirm(false)}
+                disabled={regenerating}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleRegenerate}
+                disabled={regenerating || !unit?.inauguration_date}
+                style={!unit?.inauguration_date ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+              >
+                {regenerating ? 'Regenerando...' : 'Confirmar regeneração'}
+              </button>
+            </div>
+            {!unit?.inauguration_date && (
+              <p style={{ fontSize: '13px', color: '#f59e0b', margin: 0 }}>
+                ⚠ Defina uma data de inauguração na unidade para habilitar a regeneração.
+              </p>
+            )}
           </div>
         </div>
       )}
+
+      <TaskManagerModal
+        isOpen={showTaskManager}
+        onClose={() => setShowTaskManager(false)}
+        unitId={unit?.id ?? ''}
+        faseOrder={tmFaseOrder}
+        faseNome={tmFaseNome}
+        dataInauguracao={unit?.inauguration_date ?? ''}
+        existingTasks={tasks}
+        onTasksAdded={loadData}
+      />
     </div>
   )
 }

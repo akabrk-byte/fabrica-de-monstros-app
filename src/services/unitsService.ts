@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase'
-import { seedUnitWithTasks } from './seedUnit'
 
 // ─── Tipos ───────────────────────────────────────────────────────────
 
@@ -66,7 +65,7 @@ export async function listTaskStats(unitIds: string[]): Promise<TaskStats[]> {
   if (unitIds.length === 0) return []
 
   const { data, error } = await supabase
-    .from('tasks')
+    .from('unit_tasks')
     .select('unit_id, status')
     .in('unit_id', unitIds)
 
@@ -77,7 +76,7 @@ export async function listTaskStats(unitIds: string[]): Promise<TaskStats[]> {
   for (const row of (data ?? []) as { unit_id: string; status: string }[]) {
     const entry = map.get(row.unit_id) ?? { total: 0, completed: 0 }
     entry.total++
-    if (row.status === 'concluído') entry.completed++
+    if (row.status === 'concluido') entry.completed++
     map.set(row.unit_id, entry)
   }
 
@@ -103,17 +102,7 @@ export async function createUnit(data: CreateUnitData): Promise<Unit> {
     .single()
 
   if (error) throw error
-  const unit = created as Unit
-
-  // Popula automaticamente com as tarefas reais do processo de implantação.
-  // Melhor-esforço: a unidade já foi salva, então não abortamos por falha no seed.
-  try {
-    await seedUnitWithTasks(unit.id, unit.inauguration_date)
-  } catch (seedErr) {
-    console.error('[createUnit] Falha ao popular tarefas — verifique a migration do Fase 0:', seedErr)
-  }
-
-  return unit
+  return created as Unit
 }
 
 export async function updateUnit(id: string, data: UpdateUnitData): Promise<Unit> {

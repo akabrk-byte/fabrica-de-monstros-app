@@ -1,0 +1,288 @@
+/* ── Modal override ───────────────────────────────────────────────── */
+.tmm-modal {
+  max-width: 580px;
+  gap: 0;
+  padding: 24px 28px 28px;
+}
+
+.tmm-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────── */
+.tmm-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin: 16px -28px 0;
+  padding: 0 28px;
+}
+
+.tmm-tab {
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  &:hover { color: var(--text-h); }
+}
+
+.tmm-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Content area ─────────────────────────────────────────────────── */
+.tmm-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 18px;
+}
+
+/* ── Template toolbar ─────────────────────────────────────────────── */
+.tmm-template-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tmm-template-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.tmm-toolbar-btn {
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1.5px solid var(--border-strong);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+
+  &:hover {
+    color: var(--text-h);
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+/* ── Task list ────────────────────────────────────────────────────── */
+.tmm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  background: var(--surface-2);
+}
+
+.tmm-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 28px;
+  margin: 0;
+}
+
+.tmm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s, opacity 0.12s;
+
+  &:hover:not(.tmm-item--confirming) {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.tmm-item--unchecked {
+  opacity: 0.5;
+}
+
+.tmm-item--confirming {
+  cursor: default;
+  background: rgba(239, 68, 68, 0.06);
+  border-radius: 7px;
+  opacity: 1;
+}
+
+/* Custom checkbox */
+.tmm-checkbox {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.tmm-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tmm-item-name {
+  font-size: 13px;
+  color: var(--text-h);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.tmm-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.tmm-item-cat {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+.tmm-item-offset {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Remove button ────────────────────────────────────────────────── */
+.tmm-remove-btn {
+  font-size: 10px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  &:disabled { opacity: 0 !important; pointer-events: none; }
+}
+
+.tmm-item:hover .tmm-remove-btn,
+.tmm-item--unchecked .tmm-remove-btn {
+  opacity: 1;
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.tmm-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
+  opacity: 1;
+}
+
+/* ── Inline confirm ───────────────────────────────────────────────── */
+.tmm-item--confirming {
+  opacity: 1 !important;
+  cursor: default;
+}
+
+.tmm-confirm-remove {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tmm-confirm-msg {
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.tmm-confirm-yes {
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 99px;
+  background: rgba(239, 68, 68, 0.10);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  cursor: pointer;
+  transition: background 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  &:hover { background: rgba(239, 68, 68, 0.18); }
+  &:disabled { opacity: 0.35; pointer-events: none; }
+}
+
+.tmm-confirm-no {
+  font-size: 11px;
+  font-family: inherit;
+  padding: 2px 9px;
+  border-radius: 99px;
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  transition: color 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  &:hover { color: var(--text-h); }
+  &:disabled { opacity: 0.35; pointer-events: none; }
+}
+
+/* ── Pending changes indicator ────────────────────────────────────── */
+.tmm-pending {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0;
+  text-align: right;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* ── Textarea ─────────────────────────────────────────────────────── */
+.tmm-textarea {
+  resize: vertical;
+  min-height: 72px;
+}

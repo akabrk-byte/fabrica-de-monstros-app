@@ -48,8 +48,8 @@ function alertLevel(row: UnitDashboardRow): 'red' | 'yellow' | null {
   return null
 }
 
-function isOverdueTask(due_date: string): boolean {
-  const [y, m, d] = due_date.split('-').map(Number)
+function isOverdueTask(dataPlanejada: string): boolean {
+  const [y, m, d] = dataPlanejada.split('-').map(Number)
   const due   = new Date(y, m - 1, d)
   const today = new Date(); today.setHours(0, 0, 0, 0)
   return due < today
@@ -145,18 +145,24 @@ function UnitTableRow({ row, onClick }: { row: UnitDashboardRow; onClick: () => 
 // ─── Item de tarefa crítica ───────────────────────────────────────────
 
 const STATUS_COLOR: Record<string, string> = {
-  não_iniciado: 'var(--text)',
+  nao_iniciado: 'var(--text)',
   em_andamento: '#3b82f6',
   bloqueado:    '#ef4444',
 }
 
 function CriticalTaskItem({ task, onClick }: { task: CriticalTask; onClick: () => void }) {
-  const overdue = isOverdueTask(task.due_date)
-  const dayLabel = task.days_before_inauguration !== null
-    ? (task.days_before_inauguration === 0 ? 'D0'
-      : task.days_before_inauguration > 0 ? `D+${task.days_before_inauguration}`
-      : `D${task.days_before_inauguration}`)
+  const overdue = isOverdueTask(task.data_planejada)
+  const dayLabel = task.offset_dias !== null
+    ? (task.offset_dias === 0 ? 'D0'
+      : task.offset_dias > 0 ? `D+${task.offset_dias}`
+      : `D${task.offset_dias}`)
     : null
+
+  const statusLabel =
+    task.status === 'nao_iniciado' ? 'Não iniciado'
+    : task.status === 'em_andamento' ? 'Em andamento'
+    : task.status === 'concluido' ? 'Concluído'
+    : 'Bloqueado'
 
   return (
     <div className="critical-item" onClick={onClick} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && onClick()}>
@@ -165,21 +171,18 @@ function CriticalTaskItem({ task, onClick }: { task: CriticalTask; onClick: () =
         style={{ background: STATUS_COLOR[task.status] ?? 'var(--text)' }}
       />
       <div className="critical-info">
-        <span className="critical-title">{task.title}</span>
+        <span className="critical-title">{task.nome}</span>
         <div className="critical-meta">
           {dayLabel && <span className="critical-day">{dayLabel}</span>}
           <span className="critical-unit">{task.unit_name}</span>
           <span className={overdue ? 'critical-date critical-date--overdue' : 'critical-date'}>
-            {overdue ? '⚠ ' : ''}{formatDate(task.due_date)}
+            {overdue ? '⚠ ' : ''}{formatDate(task.data_planejada)}
           </span>
         </div>
       </div>
-      <span className={`unit-status unit-status--${task.status.replace(/_/g, '_')}`}
-        style={{ fontSize: '11px', padding: '2px 8px', flexShrink: 0 }}>
-        {task.status === 'não_iniciado' ? 'Não iniciado'
-          : task.status === 'em_andamento' ? 'Em andamento'
-          : task.status === 'concluído' ? 'Concluído'
-          : 'Bloqueado'}
+      <span style={{ fontSize: '11px', padding: '2px 8px', flexShrink: 0,
+        background: 'var(--code-bg)', color: 'var(--text)', borderRadius: '99px' }}>
+        {statusLabel}
       </span>
     </div>
   )
@@ -200,7 +203,8 @@ export default function Dashboard() {
     try {
       const d = await fetchDashboardData()
       setData(d)
-    } catch {
+    } catch (err) {
+      console.error('[Dashboard] fetchDashboardData error:', err)
       setError('Não foi possível carregar o dashboard. Verifique sua conexão e tente novamente.')
     } finally {
       setLoading(false)

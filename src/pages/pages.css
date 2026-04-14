@@ -1,4 +1,4 @@
-/* Estilos compartilhados entre páginas internas */
+/* ── Shared page layout ───────────────────────────────────────────── */
 
 .page {
   min-height: 100svh;
@@ -7,30 +7,157 @@
   background: var(--bg);
 }
 
+/* ── App Header ───────────────────────────────────────────────────── */
 .page-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 18px 32px;
+  gap: 0;
+  padding: 0 28px;
+  height: 58px;
+  background: #0d0d0d;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 
   @media (max-width: 640px) {
-    padding: 16px 20px;
+    padding: 0 16px;
+    gap: 0;
   }
 }
 
+/* Logo area */
+.page-header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.page-header-logo-img {
+  height: 32px;
+  width: auto;
+  display: block;
+  filter: brightness(1.05);
+}
+
+/* Fallback brand name if logo fails */
+.page-name {
+  font-family: var(--heading);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-h);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── Navigation ───────────────────────────────────────────────────── */
+.page-header-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 24px;
+
+  @media (max-width: 640px) {
+    margin-left: 12px;
+  }
+}
+
+.page-header-nav-link {
+  position: relative;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: color 0.18s, background 0.18s;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 12px;
+    right: 12px;
+    height: 1.5px;
+    background: var(--accent);
+    border-radius: 99px;
+    transform: scaleX(0);
+    transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transform-origin: center;
+  }
+
+  &:hover {
+    color: var(--text-h);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  &:hover::after {
+    transform: scaleX(1);
+  }
+
+  &.active {
+    color: var(--text-h);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &.active::after {
+    transform: scaleX(1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 12px;
+    padding: 5px 8px;
+  }
+}
+
+/* ── Header right side ────────────────────────────────────────────── */
+.page-header-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.page-header-user {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+
+  @media (max-width: 640px) {
+    display: none;
+  }
+}
+
+/* ── Back button ──────────────────────────────────────────────────── */
 .page-back {
-  font-size: 14px;
+  font-size: 13px;
   font-family: inherit;
   color: var(--text);
   background: none;
   border: none;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
+  padding: 5px 0;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   transition: color 0.15s;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 
   &:hover {
     color: var(--text-h);
@@ -43,12 +170,7 @@
   }
 }
 
-.page-name {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-h);
-}
-
+/* ── Generic page states ──────────────────────────────────────────── */
 .page-main {
   flex: 1;
   display: flex;
@@ -61,74 +183,17 @@
 }
 
 .page-title {
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: -0.5px;
+  font-family: var(--heading);
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text-h);
   margin: 0;
+  text-transform: uppercase;
 }
 
 .page-stub {
   font-size: 15px;
   color: var(--text);
   margin: 0;
-}
-
-/* ── AppHeader: navegação central ───────────────────────── */
-.page-header-nav {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: 20px;
-
-  @media (max-width: 640px) {
-    margin-left: 8px;
-  }
-}
-
-.page-header-nav-link {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text);
-  text-decoration: none;
-  padding: 5px 12px;
-  border-radius: 6px;
-  transition: color 0.15s, background 0.15s;
-  white-space: nowrap;
-
-  &:hover {
-    color: var(--text-h);
-    background: var(--code-bg);
-  }
-
-  &.active {
-    color: var(--text-h);
-    background: var(--code-bg);
-  }
-
-  @media (max-width: 480px) {
-    font-size: 13px;
-    padding: 5px 8px;
-  }
-}
-
-/* ── AppHeader: lado direito do header ───────────────────── */
-.page-header-end {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.page-header-user {
-  font-size: 14px;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 200px;
-
-  @media (max-width: 640px) {
-    display: none;
-  }
 }
