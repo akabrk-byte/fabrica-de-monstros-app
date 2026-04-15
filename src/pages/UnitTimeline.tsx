@@ -156,7 +156,8 @@ function TaskCard({ task, onStatusChange, onDeleteTask, updating, deleting }: Ta
               disabled={updating || deleting}
               title="Marcar como concluído"
             >
-              ✓ Concluir
+              <span className="btn-complete-icon">✓</span>
+              <span className="btn-complete-text"> Concluir</span>
             </button>
           )}
           <select
