@@ -1,8 +1,40 @@
-/* ── Modal override ───────────────────────────────────────────────── */
+/* ── Overlay — fully isolated, does NOT share .modal-overlay ─────── */
+.tmm-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  background: rgba(0, 0, 0, 0.78) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding: 32px 24px !important;
+  overflow-y: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* ── Modal — fully isolated, does NOT share .modal ───────────────── */
 .tmm-modal {
-  max-width: 580px;
-  gap: 0;
-  padding: 24px 28px 28px;
+  background: var(--surface) !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 16px !important;
+  padding: 24px 28px 28px !important;
+  width: 100% !important;
+  max-width: 580px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset !important;
+  margin: auto !important;
+  /* animation intentionally omitted — fill-mode:both was leaving opacity:0 */
+  max-height: min(92dvh, 700px) !important;
+  overflow-y: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .tmm-subtitle {
@@ -47,10 +79,15 @@
 
 /* ── Content area ─────────────────────────────────────────────────── */
 .tmm-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-top: 18px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  padding-top: 18px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: auto !important;
+  overflow: visible !important;
+  flex-shrink: 0 !important;
 }
 
 /* ── Template toolbar ─────────────────────────────────────────────── */
@@ -90,15 +127,19 @@
 
 /* ── Task list ────────────────────────────────────────────────────── */
 .tmm-list {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  max-height: 320px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 6px;
-  background: var(--surface-2);
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  max-height: clamp(160px, 35vh, 280px) !important;
+  overflow-y: auto !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  padding: 6px !important;
+  background: var(--surface-2) !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 60px !important;
+  flex-shrink: 0 !important;
 }
 
 .tmm-empty {
@@ -131,16 +172,22 @@
   cursor: default;
   background: rgba(239, 68, 68, 0.06);
   border-radius: 7px;
-  opacity: 1;
+  opacity: 1 !important;
 }
 
-/* Custom checkbox */
+/* Checkbox — explicit resets to override any global rule hiding it */
 .tmm-checkbox {
-  flex-shrink: 0;
-  width: 15px;
-  height: 15px;
-  accent-color: var(--accent);
-  cursor: pointer;
+  flex-shrink: 0 !important;
+  width: 15px !important;
+  height: 15px !important;
+  accent-color: var(--accent) !important;
+  cursor: pointer !important;
+  display: inline-block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  appearance: auto !important;
+  -webkit-appearance: checkbox !important;
+  pointer-events: auto !important;
 }
 
 .tmm-item-body {
@@ -215,11 +262,6 @@
 }
 
 /* ── Inline confirm ───────────────────────────────────────────────── */
-.tmm-item--confirming {
-  opacity: 1 !important;
-  cursor: default;
-}
-
 .tmm-confirm-remove {
   display: flex;
   align-items: center;

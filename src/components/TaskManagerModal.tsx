@@ -255,10 +255,10 @@ export function TaskManagerModal({
 
   return (
     <div
-      className="modal-overlay"
+      className="tmm-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="modal tmm-modal" role="dialog" aria-modal="true" aria-labelledby="tmm-title">
+      <div className="tmm-modal" role="dialog" aria-modal="true" aria-labelledby="tmm-title">
 
         {/* Header */}
         <div className="modal-header">
