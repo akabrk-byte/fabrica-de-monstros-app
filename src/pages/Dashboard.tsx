@@ -8,6 +8,7 @@ import {
   type CriticalTask,
 } from '../services/dashboardService'
 import { type Unit } from '../services/unitsService'
+import { ActivityFeed } from '../components/ActivityFeed'
 import '../pages/Home.css'
 import './pages.css'
 import './Dashboard.css'
@@ -337,6 +338,16 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
+          </section>
+
+          {/* ── Atividade recente ────────────────────────────────── */}
+          <div className="dash-section-divider" />
+          <section className="dash-section">
+            <div className="dash-section-header">
+              <h2 className="dash-section-title">Atividade Recente</h2>
+              <span className="dash-section-sub">Atualiza a cada 30s</span>
+            </div>
+            <ActivityFeed />
           </section>
 
         </div>

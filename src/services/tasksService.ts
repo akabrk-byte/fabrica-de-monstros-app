@@ -15,6 +15,8 @@ export interface Task {
   offset_dias:    number | null
   data_planejada: string | null
   status:         TaskStatus
+  responsible_id: string | null
+  assigned_at:    string | null
   created_at:     string
   updated_at:     string
 }

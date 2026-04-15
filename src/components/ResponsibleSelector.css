@@ -1,0 +1,40 @@
+.responsible-select {
+  font-size: 11px;
+  font-family: var(--sans);
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  outline: none;
+  appearance: auto;
+  max-width: 160px;
+  transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+
+  &:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text-h);
+  }
+
+  &:focus {
+    box-shadow: 0 0 0 2px var(--accent);
+    border-color: var(--accent);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.responsible-select--saving {
+  opacity: 0.6;
+}
+
+/* Quando há valor selecionado, destaca levemente */
+.responsible-select:not([value=""]) {
+  color: var(--text-h);
+  border-color: rgba(255, 255, 255, 0.18);
+}

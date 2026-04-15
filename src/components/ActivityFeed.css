@@ -1,0 +1,120 @@
+.af-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  padding: 16px 0;
+  text-align: center;
+}
+
+/* ── Lista ────────────────────────────────────────────────────────── */
+.af-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+/* ── Item ─────────────────────────────────────────────────────────── */
+.af-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+/* ── Ícone ────────────────────────────────────────────────────────── */
+.af-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+/* ── Corpo do texto ───────────────────────────────────────────────── */
+.af-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.af-text {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+  color: var(--text);
+}
+
+.af-actor {
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.af-desc {
+  color: var(--text);
+}
+
+.af-task {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.af-values {
+  font-size: 11px;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.af-old {
+  color: #f87171;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.af-arrow {
+  color: var(--text-muted);
+}
+
+.af-new {
+  color: #4ade80;
+}
+
+/* ── Timestamp ────────────────────────────────────────────────────── */
+.af-time {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .af-item {
+    padding: 12px 14px;
+  }
+
+  .af-time {
+    display: none;
+  }
+}

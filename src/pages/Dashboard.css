@@ -434,6 +434,19 @@
   font-weight: 600;
 }
 
+/* ── Section divider ─────────────────────────────────────────────── */
+.dash-section-divider {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--border-strong) 20%,
+    var(--border-strong) 80%,
+    transparent
+  );
+  margin: 4px 0;
+}
+
 /* ── Responsive hide ──────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .hide-mobile { display: none; }

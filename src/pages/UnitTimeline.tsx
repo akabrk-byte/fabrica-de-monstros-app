@@ -11,6 +11,10 @@ import {
 } from '../services/tasksService'
 import { seedUnitWithTasks, deleteUnitTasks } from '../services/seedUnit'
 import { TaskManagerModal } from '../components/TaskManagerModal'
+import { TaskDetailModal } from '../components/TaskDetailModal'
+import { ResponsibleSelector } from '../components/ResponsibleSelector'
+import { logAction } from '../services/historyService'
+import { supabase } from '../lib/supabase'
 import '../pages/Home.css'
 import './pages.css'
 import './UnitTimeline.css'
@@ -70,6 +74,27 @@ const PHASE_COLORS: Record<number, string> = {
 const ALL_STATUSES:    TaskStatus[]   = ['nao_iniciado', 'em_andamento', 'concluido', 'bloqueado']
 const ALL_CATEGORIES:  TaskCategory[] = ['jurídico', 'engenharia', 'compras', 'marketing', 'operação', 'sistemas', 'rh']
 
+// ─── Perfis ───────────────────────────────────────────────────────────
+
+export interface ProfileSummary {
+  id:        string
+  full_name: string
+  username:  string | null
+}
+
+const AVATAR_PALETTE = ['#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#e53900', '#ec4899']
+
+function avatarColor(name: string): string {
+  const n = [...name].reduce((s, c) => s + c.charCodeAt(0), 0)
+  return AVATAR_PALETTE[n % AVATAR_PALETTE.length]
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string | null): string {
@@ -117,15 +142,22 @@ function CategoryBadge({ category }: { category: TaskCategory }) {
 }
 
 interface TaskCardProps {
-  task:           Task
-  onStatusChange: (id: string, s: TaskStatus) => void
-  onDeleteTask:   (id: string) => void
-  updating:       boolean
-  deleting:       boolean
+  task:               Task
+  responsibleProfile: ProfileSummary | null
+  onStatusChange:     (id: string, s: TaskStatus) => void
+  onDeleteTask:       (id: string) => void
+  onCardClick:        (task: Task) => void
+  onAssignUpdate:     () => void
+  updating:           boolean
+  deleting:           boolean
 }
 
-function TaskCard({ task, onStatusChange, onDeleteTask, updating, deleting }: TaskCardProps) {
+function TaskCard({
+  task, responsibleProfile, onStatusChange, onDeleteTask,
+  onCardClick, onAssignUpdate, updating, deleting,
+}: TaskCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [assigning,     setAssigning]     = useState(false)
 
   const overdue  = isOverdue(task)
   const dayLabel = dueDayLabel(task.offset_dias)
@@ -182,7 +214,13 @@ function TaskCard({ task, onStatusChange, onDeleteTask, updating, deleting }: Ta
         </div>
       </div>
 
-      <p className={`task-title ${done ? 'task-title--done' : ''}`}>{task.nome}</p>
+      <button
+        className={`task-title task-title--btn ${done ? 'task-title--done' : ''}`}
+        onClick={() => onCardClick(task)}
+        title="Ver detalhes"
+      >
+        {task.nome}
+      </button>
 
       <div className="task-meta">
         {dayLabel && <span className="task-day-label">{dayLabel}</span>}
@@ -190,6 +228,40 @@ function TaskCard({ task, onStatusChange, onDeleteTask, updating, deleting }: Ta
           <span className={`task-due-date ${overdue ? 'task-due-date--overdue' : ''}`}>
             {overdue ? '⚠ Atrasado · ' : ''}{formatDate(task.data_planejada)}
           </span>
+        )}
+
+        {/* ── Responsável ────────────────────────────────────────── */}
+        {task.responsible_id && responsibleProfile ? (
+          <button
+            className="task-responsible"
+            onClick={() => onCardClick(task)}
+            title={`Responsável: ${responsibleProfile.full_name}`}
+          >
+            <span
+              className="task-avatar"
+              style={{ background: avatarColor(responsibleProfile.full_name) }}
+            >
+              {getInitials(responsibleProfile.full_name)}
+            </span>
+            <span className="task-responsible-name">
+              @{responsibleProfile.username ?? responsibleProfile.full_name}
+            </span>
+          </button>
+        ) : assigning ? (
+          <ResponsibleSelector
+            taskId={task.id}
+            unitId={task.unit_id}
+            currentResponsibleId={null}
+            onUpdate={() => { onAssignUpdate(); setAssigning(false) }}
+          />
+        ) : (
+          <button
+            className="task-assign-btn"
+            onClick={() => setAssigning(true)}
+            disabled={updating || deleting}
+          >
+            — Atribuir
+          </button>
         )}
       </div>
 
@@ -232,15 +304,18 @@ interface PhaseSectionProps {
   color:          string
   tasks:          Task[]
   allTasks:       Task[]
+  profilesMap:    Map<string, ProfileSummary>
   onStatusChange: (id: string, s: TaskStatus) => void
   onDeleteTask:   (id: string) => void
+  onCardClick:    (task: Task) => void
+  onAssignUpdate: () => void
   updatingIds:    Set<string>
   deletingIds:    Set<string>
   onAddTask:      (faseOrder: number, faseNome: string) => void
   hasFilter:      boolean
 }
 
-function PhaseSection({ phase, color, tasks, allTasks, onStatusChange, onDeleteTask, updatingIds, deletingIds, onAddTask, hasFilter }: PhaseSectionProps) {
+function PhaseSection({ phase, color, tasks, allTasks, profilesMap, onStatusChange, onDeleteTask, onCardClick, onAssignUpdate, updatingIds, deletingIds, onAddTask, hasFilter }: PhaseSectionProps) {
   const completed = allTasks.filter((t) => t.status === 'concluido').length
   const total     = allTasks.length
   const pct       = total > 0 ? Math.round((completed / total) * 100) : null
@@ -280,8 +355,11 @@ function PhaseSection({ phase, color, tasks, allTasks, onStatusChange, onDeleteT
             <TaskCard
               key={task.id}
               task={task}
+              responsibleProfile={task.responsible_id ? (profilesMap.get(task.responsible_id) ?? null) : null}
               onStatusChange={onStatusChange}
               onDeleteTask={onDeleteTask}
+              onCardClick={onCardClick}
+              onAssignUpdate={onAssignUpdate}
               updating={updatingIds.has(task.id)}
               deleting={deletingIds.has(task.id)}
             />
@@ -301,10 +379,11 @@ export default function UnitTimeline() {
   const navigate       = useNavigate()
 
   // ── Dados ────────────────────────────────────────────────────────────
-  const [unit,      setUnit]      = useState<Unit | null>(null)
-  const [tasks,     setTasks]     = useState<Task[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [unit,        setUnit]        = useState<Unit | null>(null)
+  const [tasks,       setTasks]       = useState<Task[]>([])
+  const [profilesMap, setProfilesMap] = useState<Map<string, ProfileSummary>>(new Map())
+  const [loading,     setLoading]     = useState(true)
+  const [loadError,   setLoadError]   = useState<string | null>(null)
 
   // ── Filtros ──────────────────────────────────────────────────────────
   const [filterStatus,   setFilterStatus]   = useState<TaskStatus | 'all'>('all')
@@ -313,6 +392,9 @@ export default function UnitTimeline() {
   // ── Atualizações otimistas ───────────────────────────────────────────
   const [updatingIds, setUpdatingIds] = useState<Set<string>>(new Set())
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+
+  // ── Modal: detalhe da tarefa ─────────────────────────────────────────
+  const [detailTask, setDetailTask] = useState<Task | null>(null)
 
   // ── Modal: gerenciar tarefas ─────────────────────────────────────────
   const [showTaskManager, setShowTaskManager] = useState(false)
@@ -330,12 +412,16 @@ export default function UnitTimeline() {
     setLoading(true)
     setLoadError(null)
     try {
-      const [u, ts] = await Promise.all([
+      const [u, ts, { data: profileRows }] = await Promise.all([
         getUnit(unitId),
         listTasksByUnit(unitId),
+        supabase.from('profiles').select('id, full_name, username'),
       ])
       setUnit(u)
       setTasks(ts)
+      setProfilesMap(
+        new Map((profileRows ?? []).map((p) => [p.id, p as ProfileSummary]))
+      )
     } catch {
       setLoadError('Não foi possível carregar os dados da unidade.')
     } finally {
@@ -349,6 +435,7 @@ export default function UnitTimeline() {
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        setDetailTask(null)
         setShowTaskManager(false)
         setShowRegenConfirm(false)
       }
@@ -368,6 +455,16 @@ export default function UnitTimeline() {
     try {
       const updated = await updateTaskStatus(taskId, newStatus)
       setTasks((ts) => ts.map((t) => t.id === taskId ? updated : t))
+
+      // fire-and-forget — logAction nunca lança
+      void logAction({
+        task_id:     taskId,
+        unit_id:     prev.unit_id,
+        action:      'status_changed',
+        description: `Status alterado: ${STATUS_LABEL[prev.status]} → ${STATUS_LABEL[newStatus]}`,
+        old_value:   STATUS_LABEL[prev.status],
+        new_value:   STATUS_LABEL[newStatus],
+      })
     } catch {
       setTasks((ts) => ts.map((t) => t.id === taskId ? prev : t))
     } finally {
@@ -591,8 +688,11 @@ export default function UnitTimeline() {
                   color={PHASE_COLORS[phase.fase_order] ?? '#6b7280'}
                   tasks={tasksByPhase.get(phase.fase_order) ?? []}
                   allTasks={allTasksByPhase.get(phase.fase_order) ?? []}
+                  profilesMap={profilesMap}
                   onStatusChange={handleStatusChange}
                   onDeleteTask={handleDeleteTask}
+                  onCardClick={setDetailTask}
+                  onAssignUpdate={loadData}
                   updatingIds={updatingIds}
                   deletingIds={deletingIds}
                   onAddTask={openAddModal}
@@ -658,6 +758,14 @@ export default function UnitTimeline() {
         existingTasks={tasks}
         onTasksAdded={loadData}
       />
+
+      {detailTask && (
+        <TaskDetailModal
+          task={detailTask}
+          onClose={() => setDetailTask(null)}
+          onUpdate={loadData}
+        />
+      )}
     </div>
   )
 }

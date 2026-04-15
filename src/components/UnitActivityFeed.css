@@ -1,0 +1,135 @@
+.uaf-wrap {
+  width: 100%;
+}
+
+.uaf-empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  padding: 8px 0;
+}
+
+/* ── Lista ────────────────────────────────────────────────────────── */
+.uaf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Item ─────────────────────────────────────────────────────────── */
+.uaf-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* ── Trilha (dot + linha) ─────────────────────────────────────────── */
+.uaf-track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 28px;
+}
+
+.uaf-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: box-shadow 0.15s;
+
+  .uaf-item:hover & {
+    box-shadow: 0 0 0 3px var(--surface-3);
+  }
+}
+
+.uaf-line {
+  width: 1px;
+  flex: 1;
+  min-height: 16px;
+  background: var(--border-strong);
+  margin: 3px 0;
+}
+
+/* ── Conteúdo ─────────────────────────────────────────────────────── */
+.uaf-content {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.uaf-item--last .uaf-content {
+  padding-bottom: 0;
+}
+
+.uaf-task-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uaf-desc {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-h);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.uaf-values {
+  font-size: 12px;
+  margin: 0;
+  color: var(--text);
+}
+
+.uaf-old {
+  color: #f87171;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.uaf-arrow {
+  color: var(--text-muted);
+}
+
+.uaf-new {
+  color: #4ade80;
+}
+
+.uaf-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.uaf-user {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-3);
+  padding: 1px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.uaf-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
