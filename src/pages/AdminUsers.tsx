@@ -71,10 +71,11 @@ export default function AdminUsers() {
   const [loadError, setLoadError] = useState<string | null>(null)
 
   // New user modal
-  const [showNew,  setShowNew]  = useState(false)
-  const [newForm,  setNewForm]  = useState<NewUserForm>(EMPTY_NEW)
-  const [newError, setNewError] = useState('')
-  const [saving,   setSaving]   = useState(false)
+  const [showNew,     setShowNew]     = useState(false)
+  const [newForm,     setNewForm]     = useState<NewUserForm>(EMPTY_NEW)
+  const [newError,    setNewError]    = useState('')
+  const [newSuccess,  setNewSuccess]  = useState('')
+  const [saving,      setSaving]      = useState(false)
 
   // Edit modal
   const [editUser,   setEditUser]   = useState<AdminUser | null>(null)
@@ -85,20 +86,45 @@ export default function AdminUsers() {
 
   // ── Load ───────────────────────────────────────────────────────────
   const loadUsers = useCallback(async () => {
+    console.log('[AdminUsers] loadUsers: iniciando...')
     setLoading(true)
     setLoadError(null)
     try {
-      // NOTE: table `profiles` must have columns: email (text), active (bool default true)
-      // Migration: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS email text;
-      //            ALTER TABLE profiles ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true;
-      const { data, error } = await supabase
+      // Usa supabaseAdmin (service role) para ver todos os perfis,
+      // contornando RLS que limita usuários a ver só o próprio perfil.
+      // Tenta com email+active primeiro; cai no fallback se colunas não existirem.
+      let data: AdminUser[] | null = null
+      let queryError = null
+
+      const fullResult = await supabaseAdmin
         .from('profiles')
         .select('id, full_name, username, email, cargo, role, active, created_at')
         .order('created_at', { ascending: false })
-      if (error) throw error
-      setUsers(data as AdminUser[])
-    } catch (err) {
-      setLoadError('Não foi possível carregar os usuários.')
+
+      if (fullResult.error) {
+        console.warn('[AdminUsers] loadUsers: query completa falhou, tentando fallback sem email/active:', fullResult.error.message)
+        // Fallback: colunas email/active podem não existir ainda — instrua a rodar a migration
+        const fallback = await supabaseAdmin
+          .from('profiles')
+          .select('id, full_name, username, cargo, role, created_at')
+          .order('created_at', { ascending: false })
+        queryError = fallback.error
+        data = (fallback.data ?? []).map((p) => ({ ...p, email: null, active: null })) as AdminUser[]
+        if (!queryError) {
+          console.warn('[AdminUsers] Atenção: colunas email/active ausentes em profiles. Rode a migration SQL.')
+        }
+      } else {
+        data = fullResult.data as AdminUser[]
+      }
+
+      if (queryError) throw queryError
+
+      console.log(`[AdminUsers] loadUsers: ${data?.length ?? 0} usuário(s) carregados`)
+      setUsers(data ?? [])
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[AdminUsers] loadUsers: erro:', msg)
+      setLoadError(`Não foi possível carregar os usuários. Erro: ${msg}`)
     } finally {
       setLoading(false)
     }
@@ -118,8 +144,10 @@ export default function AdminUsers() {
 
   // ── New user ────────────────────────────────────────────────────────
   function openNew() {
+    console.log('[AdminUsers] openNew: abrindo modal de novo usuário')
     setNewForm(EMPTY_NEW)
     setNewError('')
+    setNewSuccess('')
     setSaving(false)
     setShowNew(true)
   }
@@ -136,43 +164,82 @@ export default function AdminUsers() {
   }
 
   async function handleCreateUser() {
+    console.log('[AdminUsers] handleCreateUser: submit disparado', { email: newForm.email, role: newForm.role })
+
     if (!newForm.full_name.trim()) { setNewError('Nome completo é obrigatório.'); return }
     if (!newForm.username.trim())  { setNewError('Username é obrigatório.'); return }
     if (!newForm.email.trim())     { setNewError('Email é obrigatório.'); return }
     if (newForm.password.length < 6) { setNewError('A senha deve ter pelo menos 6 caracteres.'); return }
+
     setNewError('')
+    setNewSuccess('')
     setSaving(true)
+
     try {
-      // 1. Criar usuário via Admin API (não afeta a sessão do admin logado)
+      // ── PASSO 1: criar auth user via Admin API ───────────────────────
+      // Usa supabaseAdmin para não afetar a sessão do admin logado.
+      console.log('[AdminUsers] passo 1: criando auth user...')
       const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email:          newForm.email,
-        password:       newForm.password,
-        email_confirm:  true,
-        user_metadata:  { full_name: newForm.full_name },
+        email:         newForm.email,
+        password:      newForm.password,
+        email_confirm: true,
+        user_metadata: { full_name: newForm.full_name },
       })
+      console.log('[AdminUsers] passo 1 resposta:', { userId: createData?.user?.id, error: createError?.message })
       if (createError) throw createError
+
       const newUserId = createData.user?.id
-      if (!newUserId) throw new Error('Usuário não foi criado. Verifique se o email já está em uso.')
+      if (!newUserId) throw new Error('ID do novo usuário não retornado pelo Supabase.')
 
-      // 2. Aguardar trigger criar o perfil
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      // 3. Atualizar perfil com dados extras
-      const { error: updateError } = await supabase
+      // ── PASSO 2: upsert do perfil via Admin ──────────────────────────
+      // Usa upsert (não update) para funcionar mesmo se o trigger ainda
+      // não criou a linha. Usa supabaseAdmin para bypassar RLS.
+      console.log('[AdminUsers] passo 2: fazendo upsert do perfil...', newUserId)
+      const { error: upsertError } = await supabaseAdmin
         .from('profiles')
-        .update({
-          username:  newForm.username,
-          cargo:     newForm.cargo || null,
+        .upsert({
+          id:        newUserId,
+          full_name: newForm.full_name,
+          username:  newForm.username.trim(),
+          cargo:     newForm.cargo.trim() || null,
           role:      newForm.role,
-          email:     newForm.email,
+          email:     newForm.email.trim(),
+          active:    true,
         })
-        .eq('id', newUserId)
-      if (updateError) throw updateError
+      console.log('[AdminUsers] passo 2 resposta:', { error: upsertError?.message ?? 'ok' })
+      if (upsertError) {
+        // Se upsert falha (ex: coluna email/active não existe ainda), tenta
+        // update só dos campos garantidos na tabela.
+        console.warn('[AdminUsers] upsert completo falhou, tentando upsert sem email/active:', upsertError.message)
+        const { error: fallbackError } = await supabaseAdmin
+          .from('profiles')
+          .upsert({
+            id:        newUserId,
+            full_name: newForm.full_name,
+            username:  newForm.username.trim(),
+            cargo:     newForm.cargo.trim() || null,
+            role:      newForm.role,
+          })
+        if (fallbackError) {
+          console.error('[AdminUsers] upsert fallback também falhou:', fallbackError.message)
+          throw fallbackError
+        }
+      }
 
-      setShowNew(false)
-      await loadUsers()
+      console.log('[AdminUsers] usuário criado com sucesso:', newUserId)
+      setNewSuccess(`Usuário ${newForm.full_name} criado com sucesso!`)
+
+      // Fecha modal após 1.2s para o usuário ver o feedback
+      setTimeout(() => {
+        setShowNew(false)
+        setNewSuccess('')
+        loadUsers()
+      }, 1200)
+
     } catch (err: unknown) {
-      setNewError(err instanceof Error ? err.message : 'Erro ao criar usuário.')
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[AdminUsers] handleCreateUser: erro:', msg)
+      setNewError(msg)
     } finally {
       setSaving(false)
     }
@@ -180,6 +247,7 @@ export default function AdminUsers() {
 
   // ── Edit user ───────────────────────────────────────────────────────
   function openEdit(user: AdminUser) {
+    console.log('[AdminUsers] openEdit:', user.id, user.full_name)
     setEditUser(user)
     setEditForm({
       full_name: user.full_name,
@@ -204,8 +272,10 @@ export default function AdminUsers() {
     if (!editForm.username.trim())  { setEditError('Username é obrigatório.'); return }
     setEditError('')
     setEditSaving(true)
+    console.log('[AdminUsers] handleSaveEdit:', editUser.id)
     try {
-      const { error } = await supabase
+      // Usa supabaseAdmin para bypassar RLS
+      const { error } = await supabaseAdmin
         .from('profiles')
         .update({
           full_name: editForm.full_name,
@@ -214,11 +284,14 @@ export default function AdminUsers() {
           role:      editForm.role,
         })
         .eq('id', editUser.id)
+      console.log('[AdminUsers] handleSaveEdit resposta:', { error: error?.message ?? 'ok' })
       if (error) throw error
       setEditUser(null)
       await loadUsers()
     } catch (err: unknown) {
-      setEditError(err instanceof Error ? err.message : 'Erro ao salvar.')
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[AdminUsers] handleSaveEdit erro:', msg)
+      setEditError(msg)
     } finally {
       setEditSaving(false)
     }
@@ -226,6 +299,7 @@ export default function AdminUsers() {
 
   async function handleResetPassword() {
     if (!editUser?.email) return
+    console.log('[AdminUsers] handleResetPassword:', editUser.email)
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(editUser.email)
       if (error) throw error
@@ -238,15 +312,16 @@ export default function AdminUsers() {
   // ── Toggle active ───────────────────────────────────────────────────
   async function handleToggleActive(user: AdminUser) {
     const newActive = user.active === false ? true : false
+    console.log('[AdminUsers] handleToggleActive:', user.id, '→', newActive)
     try {
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('profiles')
         .update({ active: newActive })
         .eq('id', user.id)
       if (error) throw error
       await loadUsers()
-    } catch {
-      // silently ignored — user still visible in list
+    } catch (err) {
+      console.error('[AdminUsers] handleToggleActive erro:', err)
     }
   }
 
@@ -368,48 +443,55 @@ export default function AdminUsers() {
                 <label className="field-label" htmlFor="nu-name">Nome completo *</label>
                 <input id="nu-name" type="text" className="field-input"
                   placeholder="Ex: João Silva"
-                  value={newForm.full_name} onChange={setNewField('full_name')} autoFocus />
+                  value={newForm.full_name} onChange={setNewField('full_name')} autoFocus
+                  disabled={saving} />
               </div>
 
               <div className="field">
                 <label className="field-label" htmlFor="nu-username">Username *</label>
                 <input id="nu-username" type="text" className="field-input"
                   placeholder="Ex: joao.silva"
-                  value={newForm.username} onChange={setNewField('username')} />
+                  value={newForm.username} onChange={setNewField('username')}
+                  disabled={saving} />
               </div>
 
               <div className="field">
                 <label className="field-label" htmlFor="nu-email">Email *</label>
                 <input id="nu-email" type="email" className="field-input"
                   placeholder="Ex: joao@empresa.com"
-                  value={newForm.email} onChange={setNewField('email')} />
+                  value={newForm.email} onChange={setNewField('email')}
+                  disabled={saving} />
               </div>
 
               <div className="field">
                 <label className="field-label" htmlFor="nu-password">Senha temporária *</label>
                 <input id="nu-password" type="password" className="field-input"
                   placeholder="Mínimo 6 caracteres"
-                  value={newForm.password} onChange={setNewField('password')} />
+                  value={newForm.password} onChange={setNewField('password')}
+                  disabled={saving} />
               </div>
 
               <div className="field">
                 <label className="field-label" htmlFor="nu-cargo">Cargo / Função</label>
                 <input id="nu-cargo" type="text" className="field-input"
                   placeholder="Ex: Gerente de Obras"
-                  value={newForm.cargo} onChange={setNewField('cargo')} />
+                  value={newForm.cargo} onChange={setNewField('cargo')}
+                  disabled={saving} />
               </div>
 
               <div className="field">
                 <label className="field-label" htmlFor="nu-role">Perfil de acesso</label>
                 <select id="nu-role" className="field-input"
-                  value={newForm.role} onChange={setNewField('role')}>
+                  value={newForm.role} onChange={setNewField('role')}
+                  disabled={saving}>
                   <option value="user">Usuário</option>
                   <option value="manager">Gerente</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
 
-              {newError && <p className="modal-error">{newError}</p>}
+              {newError   && <p className="modal-error">{newError}</p>}
+              {newSuccess && <p className="au-modal-success">{newSuccess}</p>}
 
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary"
@@ -417,7 +499,7 @@ export default function AdminUsers() {
                   Cancelar
                 </button>
                 <button type="button" className="btn btn-primary"
-                  onClick={handleCreateUser} disabled={saving}>
+                  onClick={handleCreateUser} disabled={saving || !!newSuccess}>
                   {saving ? 'Criando...' : 'Criar usuário'}
                 </button>
               </div>
@@ -443,26 +525,30 @@ export default function AdminUsers() {
               <div className="field">
                 <label className="field-label" htmlFor="eu-name">Nome completo *</label>
                 <input id="eu-name" type="text" className="field-input"
-                  value={editForm.full_name} onChange={setEditField('full_name')} autoFocus />
+                  value={editForm.full_name} onChange={setEditField('full_name')}
+                  autoFocus disabled={editSaving} />
               </div>
 
               <div className="field">
                 <label className="field-label" htmlFor="eu-username">Username *</label>
                 <input id="eu-username" type="text" className="field-input"
-                  value={editForm.username} onChange={setEditField('username')} />
+                  value={editForm.username} onChange={setEditField('username')}
+                  disabled={editSaving} />
               </div>
 
               <div className="field">
                 <label className="field-label" htmlFor="eu-cargo">Cargo / Função</label>
                 <input id="eu-cargo" type="text" className="field-input"
                   placeholder="Ex: Gerente de Obras"
-                  value={editForm.cargo} onChange={setEditField('cargo')} />
+                  value={editForm.cargo} onChange={setEditField('cargo')}
+                  disabled={editSaving} />
               </div>
 
               <div className="field">
                 <label className="field-label" htmlFor="eu-role">Perfil de acesso</label>
                 <select id="eu-role" className="field-input"
-                  value={editForm.role} onChange={setEditField('role')}>
+                  value={editForm.role} onChange={setEditField('role')}
+                  disabled={editSaving}>
                   <option value="user">Usuário</option>
                   <option value="manager">Gerente</option>
                   <option value="admin">Admin</option>

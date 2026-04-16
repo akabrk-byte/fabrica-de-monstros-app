@@ -75,6 +75,10 @@ export function useProfile(): ProfileState {
 }
 
 export function useIsAdmin(): boolean {
-  const { profile } = useProfile()
-  return profile?.role === 'admin'
+  const { profile, loading } = useProfile()
+  const isAdmin = profile?.role === 'admin'
+  if (!loading) {
+    console.log('[useIsAdmin] role:', profile?.role ?? 'null', '| isAdmin:', isAdmin)
+  }
+  return isAdmin
 }
