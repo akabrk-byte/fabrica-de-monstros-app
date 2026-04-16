@@ -177,6 +177,8 @@
   },
   "active": "b22c026cd9124909",
   "lastOpenFiles": [
+    "src/components/ProfileModal.tsx.tmp.42348.1776354966365",
+    "src/contexts/ProfileContext.tsx",
     "src/lib/supabaseAdmin.ts",
     "src/components/UserAvatar.css",
     "src/components/UserAvatar.tsx",
@@ -186,8 +188,6 @@
     "src/components/AppHeader.css",
     "src/components/ProfileModal.css",
     "src/components/ProfileModal.css.tmp.50136.1776272551686",
-    "src/components/ProfileModal.tsx",
-    "src/components/ActivityFeed.css",
     "dist/favicon.svg",
     "dist/icons.svg",
     "node_modules/@supabase/auth-js/README.md",

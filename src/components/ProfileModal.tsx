@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../hooks/useProfile'
+import { useProfileContext } from '../contexts/ProfileContext'
 import './ProfileModal.css'
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
 
 export function ProfileModal({ onClose }: Props) {
   const { profile } = useProfile()
+  const { refresh } = useProfileContext()
 
   const [fullName, setFullName] = useState('')
   const [username, setUsername] = useState('')
@@ -63,9 +65,9 @@ export function ProfileModal({ onClose }: Props) {
         )
       }
 
-      // Sincroniza o full_name nos metadados do auth para que o
-      // onAuthStateChange dispare e o useProfile re-busque o perfil
+      // Atualiza metadados do auth (dispara USER_UPDATED → ProfileContext re-busca)
       await supabase.auth.updateUser({ data: { full_name: fullName.trim() } })
+      refresh()   // garante atualização imediata no contexto compartilhado
 
       setSuccess(true)
       setTimeout(() => {

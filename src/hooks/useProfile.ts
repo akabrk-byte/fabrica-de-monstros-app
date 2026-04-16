@@ -1,84 +1,28 @@
-import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+// Re-exporta tipos do ProfileContext para manter compatibilidade com imports existentes
+export type { UserRole, Profile } from '../contexts/ProfileContext'
 
-export type UserRole = 'admin' | 'manager' | 'user'
+import { useProfileContext } from '../contexts/ProfileContext'
 
-export interface Profile {
-  id:         string
-  full_name:  string
-  username:   string | null
-  cargo:      string | null
-  avatar_url: string | null
-  role:       UserRole
-  created_at: string
+// ─── useProfile ───────────────────────────────────────────────────────
+// Lê o perfil do ProfileContext compartilhado — um único fetch para toda a árvore.
+export function useProfile() {
+  return useProfileContext()
 }
 
-interface ProfileState {
-  profile: Profile | null
-  loading: boolean
-  error:   Error | null
-}
-
-export function useProfile(): ProfileState {
-  const [state, setState] = useState<ProfileState>({
-    profile: null,
-    loading: true,
-    error:   null,
-  })
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function fetchProfile(userId: string) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, username, cargo, avatar_url, role, created_at')
-        .eq('id', userId)
-        .single()
-
-      if (cancelled) return
-
-      if (error) {
-        setState({ profile: null, loading: false, error: new Error(error.message) })
-      } else {
-        setState({ profile: data as Profile, loading: false, error: null })
-      }
-    }
-
-    // Carrega perfil na montagem
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (cancelled) return
-      if (!user) {
-        setState({ profile: null, loading: false, error: null })
-        return
-      }
-      fetchProfile(user.id)
-    })
-
-    // Mantém sincronizado com mudanças de sessão
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (cancelled) return
-      if (!session?.user) {
-        setState({ profile: null, loading: false, error: null })
-        return
-      }
-      fetchProfile(session.user.id)
-    })
-
-    return () => {
-      cancelled = true
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  return state
-}
-
+// ─── useIsAdmin ───────────────────────────────────────────────────────
+// Retorna true apenas quando: role === 'admin' E active não é false
+// Retorna false durante loading (profile ainda nulo) — nunca nega erroneamente
+// após o load completar.
 export function useIsAdmin(): boolean {
-  const { profile, loading } = useProfile()
-  const isAdmin = profile?.role === 'admin'
-  if (!loading) {
-    console.log('[useIsAdmin] role:', profile?.role ?? 'null', '| isAdmin:', isAdmin)
-  }
+  const { profile, loading } = useProfileContext()
+
+  if (loading) return false          // aguarda — não decide antes da hora
+
+  const isAdmin = profile?.role === 'admin' && profile?.active !== false
+  console.log('[useIsAdmin] userId:', profile?.id ?? 'null',
+    '| role:', profile?.role ?? 'null',
+    '| active:', profile?.active ?? 'null',
+    '| isAdmin:', isAdmin)
+
   return isAdmin
 }
