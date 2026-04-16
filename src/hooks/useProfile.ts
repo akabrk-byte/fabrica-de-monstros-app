@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
+export type UserRole = 'admin' | 'manager' | 'user'
+
 export interface Profile {
   id:         string
   full_name:  string
   username:   string | null
   cargo:      string | null
   avatar_url: string | null
+  role:       UserRole
   created_at: string
 }
 
@@ -29,7 +32,7 @@ export function useProfile(): ProfileState {
     async function fetchProfile(userId: string) {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, full_name, username, cargo, avatar_url, created_at')
+        .select('id, full_name, username, cargo, avatar_url, role, created_at')
         .eq('id', userId)
         .single()
 
@@ -69,4 +72,9 @@ export function useProfile(): ProfileState {
   }, [])
 
   return state
+}
+
+export function useIsAdmin(): boolean {
+  const { profile } = useProfile()
+  return profile?.role === 'admin'
 }

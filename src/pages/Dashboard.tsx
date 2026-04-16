@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { AppHeader } from '../components/AppHeader'
 import {
   fetchDashboardData,
@@ -192,7 +192,9 @@ function CriticalTaskItem({ task, onClick }: { task: CriticalTask; onClick: () =
 // ─── Página principal ─────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const navigate = useNavigate()
+  const navigate  = useNavigate()
+  const location  = useLocation()
+  const accessDeniedMsg = (location.state as { accessDenied?: string } | null)?.accessDenied ?? null
 
   const [data,    setData]    = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -219,6 +221,25 @@ export default function Dashboard() {
   return (
     <div className="page">
       <AppHeader title="Dashboard" />
+
+      {/* ── Acesso negado (vindo de AdminRoute) ─────────────────── */}
+      {accessDeniedMsg && (
+        <div style={{
+          background: 'rgba(239,68,68,0.1)',
+          border: '1px solid rgba(239,68,68,0.25)',
+          borderRadius: '8px',
+          margin: '16px 36px 0',
+          padding: '10px 16px',
+          fontSize: '13px',
+          color: '#f87171',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <span style={{ fontWeight: 600 }}>Acesso negado.</span>
+          {accessDeniedMsg}
+        </div>
+      )}
 
       {/* ── Loading ─────────────────────────────────────────────── */}
       {loading && (
