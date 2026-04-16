@@ -10,13 +10,11 @@ export function useProfile() {
 }
 
 // ─── useIsAdmin ───────────────────────────────────────────────────────
-// Retorna true apenas quando: role === 'admin' E active não é false
-// Retorna false durante loading (profile ainda nulo) — nunca nega erroneamente
-// após o load completar.
+// Retorna true apenas quando: role === 'admin' E active não é false.
+// NÃO depende de `loading` — profile nulo já garante false durante o fetch.
+// Isso evita flicker quando USER_UPDATED dispara re-fetch (loading vira true momentaneamente).
 export function useIsAdmin(): boolean {
-  const { profile, loading } = useProfileContext()
-
-  if (loading) return false          // aguarda — não decide antes da hora
+  const { profile } = useProfileContext()
 
   const isAdmin = profile?.role === 'admin' && profile?.active !== false
   console.log('[useIsAdmin] userId:', profile?.id ?? 'null',

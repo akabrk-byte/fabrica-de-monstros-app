@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuthContext } from './AuthContext'
 
@@ -41,6 +41,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   async function fetchProfile(userId: string) {
     console.log('[Profile] buscando perfil para userId:', userId)
     setLoading(true)
+    // NÃO limpa profile aqui — mantém o valor anterior enquanto re-busca,
+    // evitando que isAdmin pisque para false durante USER_UPDATED re-fetch.
     setError(null)
 
     const { data, error: fetchErr } = await supabase
@@ -113,9 +115,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function refresh() {
+  const refresh = useCallback(() => {
     if (user) fetchProfile(user.id)
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   return (
     <ProfileContext.Provider value={{ profile, loading, error, refresh }}>

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { useIsAdmin } from '../hooks/useProfile'
+import { useProfile } from '../hooks/useProfile'
 import { UserAvatar } from './UserAvatar'
 import '../pages/Home.css'
 import '../pages/pages.css'
@@ -10,7 +10,15 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ title: _title }: AppHeaderProps) {
-  const isAdmin = useIsAdmin()
+  const { profile } = useProfile()
+
+  // Não depende de `loading` — quando profile é null (durante fetch inicial), isAdmin é false.
+  // Assim evita o flicker causado por loading:true no USER_UPDATED re-fetch.
+  const isAdmin = profile?.role === 'admin' && profile?.active !== false
+
+  console.log('[Nav] profile:', profile ? { id: profile.id, role: profile.role, active: profile.active } : null)
+  console.log('[Nav] isAdmin:', isAdmin)
+  console.log('[Nav] exibindo item Usuários:', isAdmin)
 
   return (
     <header className="page-header">
