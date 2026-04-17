@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react'
 import { supabase } from '../lib/supabase'
 import { createTask, deleteTask, type Task, type TaskCategory, type TaskStatus } from '../services/tasksService'
+import { logAction } from '../services/historyService'
 import { TASK_TEMPLATES } from '../data/taskTemplates'
 import './TaskManagerModal.css'
 
@@ -196,15 +197,22 @@ export function TaskManagerModal({
         })
         const { error } = await supabase.from('unit_tasks').insert(rows)
         if (error) throw error
+
+        for (const nome of toAdd) {
+          void logAction({ task_id: null, unit_id: unitId, action: 'created', description: 'Tarefa adicionada', task_title: nome })
+        }
       }
 
       if (toRemove.length > 0) {
-        await Promise.all(
-          toRemove
-            .map((nome) => existingTasks.find((t) => t.nome === nome && t.fase_order === faseOrder))
-            .filter((t): t is Task => !!t)
-            .map((t) => deleteTask(t.id)),
-        )
+        const tasksToDelete = toRemove
+          .map((nome) => existingTasks.find((t) => t.nome === nome && t.fase_order === faseOrder))
+          .filter((t): t is Task => !!t)
+
+        // Loga ANTES de deletar para preservar referência
+        for (const t of tasksToDelete) {
+          void logAction({ task_id: t.id, unit_id: unitId, action: 'deleted', description: 'Tarefa removida', task_title: t.nome })
+        }
+        await Promise.all(tasksToDelete.map((t) => deleteTask(t.id)))
       }
 
       onTasksAdded()
@@ -233,7 +241,7 @@ export function TaskManagerModal({
         inaug.setHours(0, 0, 0, 0)
         offset_dias = Math.round((due.getTime() - inaug.getTime()) / 86_400_000)
       }
-      await createTask({
+      const created = await createTask({
         unit_id:        unitId,
         nome:           form.nome.trim(),
         categoria:      form.categoria,
@@ -241,6 +249,13 @@ export function TaskManagerModal({
         fase_nome:      faseNome,
         data_planejada: form.data_planejada,
         offset_dias,
+      })
+      void logAction({
+        task_id:    created.id,
+        unit_id:    unitId,
+        action:     'created',
+        description: 'Tarefa criada manualmente',
+        task_title:  created.nome,
       })
       onTasksAdded()
       onClose()

@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
-import { listUnitActivity, type HistoryEntry, type HistoryAction } from '../services/historyService'
+import { listUnitActivity, listGlobalActivity, type HistoryEntry, type HistoryAction } from '../services/historyService'
 import './ActivityFeed.css'
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -14,7 +13,7 @@ function formatDate(iso: string): string {
   }).format(new Date(iso))
 }
 
-// ─── Ícones (ArrowRight / User / Plus / MessageCircle / Trash2) ───────
+// ─── Ícones ───────────────────────────────────────────────────────────
 
 function IconArrowRight() {
   return (
@@ -75,12 +74,6 @@ const ACTION_COLOR: Record<HistoryAction, string> = {
   deleted:        '#f87171',
 }
 
-// ─── Tipos internos ───────────────────────────────────────────────────
-
-interface FeedEntry extends HistoryEntry {
-  task_nome: string | null
-}
-
 // ─── Componente ───────────────────────────────────────────────────────
 
 interface Props {
@@ -88,63 +81,18 @@ interface Props {
 }
 
 export function ActivityFeed({ unitId }: Props) {
-  const [entries, setEntries] = useState<FeedEntry[]>([])
+  const [entries, setEntries] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    // Passo 1 — busca o histórico (por unidade ou global)
-    let historyRows: HistoryEntry[]
+    const rows = unitId
+      ? await listUnitActivity(unitId, 30)
+      : await listGlobalActivity(30)
 
-    if (unitId) {
-      historyRows = await listUnitActivity(unitId, 30)
-    } else {
-      const { data, error } = await supabase
-        .from('task_history')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(30)
-
-      if (error) {
-        console.error('[ActivityFeed] fetch error:', error)
-        historyRows = []
-      } else {
-        historyRows = (data ?? []) as HistoryEntry[]
-      }
-    }
-
-    if (historyRows.length === 0) {
-      setEntries([])
-      setLoading(false)
-      return
-    }
-
-    // Passo 2 — busca nomes das tarefas (IDs únicos)
-    const taskIds = [...new Set(historyRows.map((h) => h.task_id).filter(Boolean))]
-    const nameMap = new Map<string, string>()
-
-    if (taskIds.length > 0) {
-      const { data: taskRows } = await supabase
-        .from('unit_tasks')
-        .select('id, nome')
-        .in('id', taskIds)
-
-      if (taskRows) {
-        for (const t of taskRows as { id: string; nome: string }[]) {
-          nameMap.set(t.id, t.nome)
-        }
-      }
-    }
-
-    setEntries(
-      historyRows.map((h) => ({
-        ...h,
-        task_nome: h.task_id ? (nameMap.get(h.task_id) ?? null) : null,
-      })),
-    )
+    setEntries(rows)
     setLoading(false)
   }, [unitId])
 
-  // Carga inicial
   useEffect(() => {
     setLoading(true)
     load()
@@ -167,13 +115,12 @@ export function ActivityFeed({ unitId }: Props) {
   return (
     <ul className="af-list">
       {entries.map((e) => {
-        const color    = ACTION_COLOR[e.action]
-        const taskText = e.task_nome ? ` em '${e.task_nome}'` : ''
+        const color    = ACTION_COLOR[e.action] ?? '#888'
         const actor    = e.user_name ?? 'Sistema'
+        const taskText = e.task_title ? ` em '${e.task_title}'` : ''
 
         return (
           <li key={e.id} className="af-item">
-            {/* Ícone */}
             <span
               className="af-icon"
               style={{ color, background: `${color}1a`, borderColor: `${color}44` }}
@@ -181,15 +128,12 @@ export function ActivityFeed({ unitId }: Props) {
               {ACTION_ICON[e.action]}
             </span>
 
-            {/* Texto */}
             <div className="af-body">
               <p className="af-text">
                 <span className="af-actor">{actor}</span>
                 {' '}
                 <span className="af-desc">{e.description}</span>
-                {taskText && (
-                  <span className="af-task">{taskText}</span>
-                )}
+                {taskText && <span className="af-task">{taskText}</span>}
               </p>
               {e.old_value && e.new_value && (
                 <p className="af-values">
@@ -200,7 +144,6 @@ export function ActivityFeed({ unitId }: Props) {
               )}
             </div>
 
-            {/* Timestamp */}
             <time className="af-time">{formatDate(e.created_at)}</time>
           </li>
         )

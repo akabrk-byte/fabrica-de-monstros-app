@@ -456,12 +456,12 @@ export default function UnitTimeline() {
       const updated = await updateTaskStatus(taskId, newStatus)
       setTasks((ts) => ts.map((t) => t.id === taskId ? updated : t))
 
-      // fire-and-forget — logAction nunca lança
       void logAction({
         task_id:     taskId,
         unit_id:     prev.unit_id,
         action:      'status_changed',
-        description: `Status alterado: ${STATUS_LABEL[prev.status]} → ${STATUS_LABEL[newStatus]}`,
+        description: 'Status alterado',
+        task_title:  prev.nome,
         old_value:   STATUS_LABEL[prev.status],
         new_value:   STATUS_LABEL[newStatus],
       })
@@ -474,8 +474,19 @@ export default function UnitTimeline() {
 
   // ── Remover tarefa ────────────────────────────────────────────────────
   const handleDeleteTask = useCallback(async (taskId: string) => {
+    const taskToDelete = tasks.find((t) => t.id === taskId)
     setDeletingIds((s) => new Set(s).add(taskId))
     try {
+      // Loga ANTES de deletar para que o task_id ainda exista na tabela
+      if (taskToDelete) {
+        void logAction({
+          task_id:    taskId,
+          unit_id:    taskToDelete.unit_id,
+          action:     'deleted',
+          description: 'Tarefa removida',
+          task_title:  taskToDelete.nome,
+        })
+      }
       await deleteTask(taskId)
       setTasks((ts) => ts.filter((t) => t.id !== taskId))
     } catch {
@@ -483,7 +494,7 @@ export default function UnitTimeline() {
     } finally {
       setDeletingIds((s) => { const n = new Set(s); n.delete(taskId); return n })
     }
-  }, [])
+  }, [tasks])
 
   // ── Abrir modal de tarefas ────────────────────────────────────────────
   const openAddModal = (faseOrder: number, faseNome: string) => {

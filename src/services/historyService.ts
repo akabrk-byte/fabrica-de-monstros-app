@@ -10,22 +10,24 @@ export type HistoryAction =
 
 export interface HistoryEntry {
   id:          string
-  task_id:     string
+  task_id:     string | null
   unit_id:     string
-  user_id:     string | null
+  changed_by:  string | null
   user_name:   string | null
   action:      HistoryAction
-  description: string
+  description: string | null
+  task_title:  string | null
   old_value:   string | null
   new_value:   string | null
   created_at:  string
 }
 
 interface LogActionParams {
-  task_id:     string
+  task_id:     string | null
   unit_id:     string
   action:      HistoryAction
   description: string
+  task_title?: string
   old_value?:  string
   new_value?:  string
 }
@@ -35,37 +37,36 @@ export async function logAction(params: LogActionParams): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser()
 
     let user_name: string | null = null
-
     if (user) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('full_name')
         .eq('id', user.id)
         .single()
-
       user_name = profile?.full_name ?? null
     }
 
     const { error } = await supabase.from('task_history').insert({
       task_id:     params.task_id,
       unit_id:     params.unit_id,
-      user_id:     user?.id ?? null,
+      changed_by:  user?.id ?? null,
       user_name,
       action:      params.action,
       description: params.description,
+      task_title:  params.task_title ?? null,
       old_value:   params.old_value ?? null,
       new_value:   params.new_value ?? null,
     })
 
     if (error) {
-      console.error('[historyService] logAction insert error:', error)
+      console.error('[historyService] logAction error:', error.message)
     }
   } catch (err) {
     console.error('[historyService] logAction unexpected error:', err)
   }
 }
 
-export async function listUnitActivity(unitId: string, limit = 20): Promise<HistoryEntry[]> {
+export async function listUnitActivity(unitId: string, limit = 30): Promise<HistoryEntry[]> {
   const { data, error } = await supabase
     .from('task_history')
     .select('*')
@@ -74,7 +75,22 @@ export async function listUnitActivity(unitId: string, limit = 20): Promise<Hist
     .limit(limit)
 
   if (error) {
-    console.error('[historyService] listUnitActivity error:', error)
+    console.error('[historyService] listUnitActivity error:', error.message)
+    return []
+  }
+
+  return (data ?? []) as HistoryEntry[]
+}
+
+export async function listGlobalActivity(limit = 30): Promise<HistoryEntry[]> {
+  const { data, error } = await supabase
+    .from('task_history')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    console.error('[historyService] listGlobalActivity error:', error.message)
     return []
   }
 
@@ -89,7 +105,7 @@ export async function listTaskHistory(taskId: string): Promise<HistoryEntry[]> {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('[historyService] listTaskHistory error:', error)
+    console.error('[historyService] listTaskHistory error:', error.message)
     return []
   }
 
