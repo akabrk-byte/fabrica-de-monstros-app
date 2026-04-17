@@ -12,7 +12,7 @@ export interface HistoryEntry {
   id:          string
   task_id:     string | null
   unit_id:     string
-  changed_by:  string | null
+  user_id:     string | null
   user_name:   string | null
   action:      HistoryAction
   description: string | null
@@ -49,7 +49,7 @@ export async function logAction(params: LogActionParams): Promise<void> {
     const { error } = await supabase.from('task_history').insert({
       task_id:     params.task_id,
       unit_id:     params.unit_id,
-      changed_by:  user?.id ?? null,
+      user_id:     user?.id ?? null,
       user_name,
       action:      params.action,
       description: params.description,
