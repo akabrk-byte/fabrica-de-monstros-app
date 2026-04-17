@@ -26,7 +26,7 @@ function avatarColor(id: string): string {
 const ROLE_LABELS: Record<string, string> = {
   admin:   'Admin',
   manager: 'Gerente',
-  user:    'Usuário',
+  usuario: 'Usuário',
 }
 
 // ─── Component ────────────────────────────────────────────────────────

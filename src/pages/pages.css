@@ -21,7 +21,6 @@
   z-index: 100;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  overflow: hidden;
 
   @media (max-width: 640px) {
     padding: 0 12px;
@@ -68,6 +67,7 @@
   margin-left: 24px;
   min-width: 0;
   flex-shrink: 1;
+  overflow: hidden;
 
   @media (max-width: 640px) {
     margin-left: 8px;
