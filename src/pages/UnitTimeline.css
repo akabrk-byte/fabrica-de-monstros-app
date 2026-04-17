@@ -848,4 +848,50 @@ input[type="date"].field-input::-webkit-calendar-picker-indicator {
   .phase-progress-bar {
     display: none;
   }
+
+  .timeline-content {
+    overflow-x: hidden;
+    padding: 16px 12px 40px;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  .tl-unit-header-top {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tl-regen-btn {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .task-card {
+    padding: 10px 12px;
+    overflow: hidden;
+  }
+
+  .task-card-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .task-card-controls {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .status-select {
+    flex: 1;
+    min-width: 0;
+    max-width: 140px;
+  }
+
+  .tl-filter-select {
+    box-sizing: border-box;
+    max-width: 100%;
+  }
 }

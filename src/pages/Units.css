@@ -7,8 +7,11 @@
   gap: 28px;
 
   @media (max-width: 640px) {
-    padding: 20px 16px;
+    padding: 20px 12px;
     gap: 20px;
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
   }
 }
 

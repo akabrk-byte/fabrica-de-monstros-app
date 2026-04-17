@@ -1,9 +1,11 @@
 /* ── Users table ──────────────────────────────────────────────────── */
 .au-table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: linear-gradient(160deg, #141414 0%, #0f0f0f 100%);
+  max-width: 100%;
 }
 
 .au-table {
@@ -210,4 +212,84 @@
   align-self: flex-start;
   font-size: 12px;
   padding: 6px 14px;
+}
+
+/* ── Mobile card layout ────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .au-table-wrap {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    overflow-x: visible;
+  }
+
+  .au-table {
+    display: block;
+  }
+
+  .au-table thead {
+    display: none;
+  }
+
+  .au-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .au-tr {
+    display: block;
+    background: linear-gradient(160deg, #141414 0%, #0f0f0f 100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+
+  .au-tr:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .au-td {
+    display: flex;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 13px;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .au-td::before {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    min-width: 64px;
+    flex-shrink: 0;
+  }
+
+  .au-td:nth-child(1)::before { content: 'Nome'; }
+  .au-td:nth-child(2)::before { content: 'User'; }
+  .au-td:nth-child(3)::before { content: 'Email'; }
+  .au-td:nth-child(4)::before { content: 'Cargo'; }
+  .au-td:nth-child(5)::before { content: 'Perfil'; }
+  .au-td:nth-child(6) { padding-top: 10px; }
+  .au-td:nth-child(6)::before { content: ''; min-width: 0; }
+
+  .au-td--mono {
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Email wraps to second line if too long */
+  .au-td:nth-child(3) {
+    flex-wrap: wrap;
+  }
+
+  .au-td:nth-child(3) > *,
+  .au-td:nth-child(3) {
+    word-break: break-all;
+  }
 }
