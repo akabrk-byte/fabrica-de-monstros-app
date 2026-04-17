@@ -85,7 +85,7 @@ export default function AdminUsers() {
 
   // Edit modal
   const [editUser,   setEditUser]   = useState<AdminUser | null>(null)
-  const [editForm,   setEditForm]   = useState<EditUserForm>({ full_name: '', username: '', cargo: '', role: 'user' })
+  const [editForm,   setEditForm]   = useState<EditUserForm>({ full_name: '', username: '', cargo: '', role: 'usuario' })
   const [editError,  setEditError]  = useState('')
   const [editSaving, setEditSaving] = useState(false)
 
