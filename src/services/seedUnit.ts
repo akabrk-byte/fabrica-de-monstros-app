@@ -1,4 +1,4 @@
-import { supabaseAdminAdmin } from '../lib/supabaseAdminAdmin'
+import { supabaseAdmin } from '../lib/supabaseAdmin'
 import { TASK_TEMPLATES } from '../data/taskTemplates'
 
 const CHUNK_SIZE = 50
