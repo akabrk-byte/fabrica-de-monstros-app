@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { AppHeader } from '../components/AppHeader'
-import { supabase } from '../lib/supabase'
 import { supabaseAdmin } from '../lib/supabaseAdmin'
 import type { UserRole } from '../hooks/useProfile'
 import '../pages/Home.css'
@@ -82,7 +81,13 @@ export default function AdminUsers() {
   const [editForm,   setEditForm]   = useState<EditUserForm>({ full_name: '', username: '', cargo: '', role: 'user' })
   const [editError,  setEditError]  = useState('')
   const [editSaving, setEditSaving] = useState(false)
-  const [resetSent,  setResetSent]  = useState(false)
+
+  // Reset de senha direto
+  const [resetPwd,     setResetPwd]     = useState('')
+  const [showResetPwd, setShowResetPwd] = useState(false)
+  const [resetSaving,  setResetSaving]  = useState(false)
+  const [resetError,   setResetError]   = useState('')
+  const [resetSuccess, setResetSuccess] = useState(false)
 
   // ── Load ───────────────────────────────────────────────────────────
   const loadUsers = useCallback(async () => {
@@ -257,7 +262,11 @@ export default function AdminUsers() {
     })
     setEditError('')
     setEditSaving(false)
-    setResetSent(false)
+    setResetPwd('')
+    setShowResetPwd(false)
+    setResetSaving(false)
+    setResetError('')
+    setResetSuccess(false)
   }
 
   function setEditField<K extends keyof EditUserForm>(field: K) {
@@ -297,15 +306,26 @@ export default function AdminUsers() {
     }
   }
 
-  async function handleResetPassword() {
-    if (!editUser?.email) return
-    console.log('[AdminUsers] handleResetPassword:', editUser.email)
+  async function handleDirectResetPassword() {
+    if (!editUser) return
+    if (resetPwd.length < 6) { setResetError('A senha deve ter pelo menos 6 caracteres.'); return }
+    setResetError('')
+    setResetSaving(true)
+    console.log('[AdminUsers] handleDirectResetPassword: redefinindo senha para', editUser.id)
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(editUser.email)
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(editUser.id, {
+        password: resetPwd,
+      })
       if (error) throw error
-      setResetSent(true)
+      console.log('[AdminUsers] senha redefinida com sucesso')
+      setResetSuccess(true)
+      setResetPwd('')
     } catch (err: unknown) {
-      setEditError(err instanceof Error ? err.message : 'Erro ao enviar email.')
+      const msg = err instanceof Error ? err.message : 'Erro ao redefinir senha.'
+      console.error('[AdminUsers] handleDirectResetPassword erro:', msg)
+      setResetError(msg)
+    } finally {
+      setResetSaving(false)
     }
   }
 
@@ -556,17 +576,41 @@ export default function AdminUsers() {
               </div>
 
               <div className="au-reset-section">
-                <p className="au-reset-email">
-                  Email: <strong>{editUser.email ?? '—'}</strong>
-                </p>
-                {resetSent ? (
-                  <p className="au-reset-sent">✓ Email de redefinição enviado.</p>
+                <p className="au-reset-label">Redefinir senha</p>
+                {resetSuccess ? (
+                  <p className="au-reset-sent">✓ Senha redefinida com sucesso.</p>
                 ) : (
-                  <button type="button" className="btn btn-secondary au-reset-btn"
-                    onClick={handleResetPassword}
-                    disabled={!editUser.email || editSaving}>
-                    Redefinir senha
-                  </button>
+                  <>
+                    <div className="au-reset-field">
+                      <input
+                        type={showResetPwd ? 'text' : 'password'}
+                        className="field-input"
+                        placeholder="Nova senha (mín. 6 caracteres)"
+                        value={resetPwd}
+                        onChange={(e) => { setResetPwd(e.target.value); setResetError('') }}
+                        disabled={resetSaving || editSaving}
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        className="au-pwd-toggle"
+                        onClick={() => setShowResetPwd((v) => !v)}
+                        aria-label={showResetPwd ? 'Ocultar senha' : 'Mostrar senha'}
+                        tabIndex={-1}
+                      >
+                        {showResetPwd ? '🙈' : '👁'}
+                      </button>
+                    </div>
+                    {resetError && <p className="au-reset-error">{resetError}</p>}
+                    <button
+                      type="button"
+                      className="btn btn-secondary au-reset-btn"
+                      onClick={handleDirectResetPassword}
+                      disabled={!resetPwd || resetSaving || editSaving}
+                    >
+                      {resetSaving ? 'Aplicando...' : 'Aplicar nova senha'}
+                    </button>
+                  </>
                 )}
               </div>
 
