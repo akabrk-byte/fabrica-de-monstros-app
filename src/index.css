@@ -1,17 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
 
 /* ===== SCROLL & OVERFLOW ===== */
-html {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
-
-body {
-  overflow-x: hidden;
-  overflow-y: auto;      /* garante scroll vertical no desktop */
+html, body {
+  overflow-x: clip;   /* bloqueia scroll lateral sem criar stacking context */
+  overflow-y: visible; /* scroll vertical fica no documento normalmente */
   max-width: 100vw;
-  overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: none;
   touch-action: pan-y;
 }
 
@@ -81,12 +75,13 @@ img, video, table, pre, code {
   min-height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;   /* sem scroll lateral em qualquer nível */
+  overflow-x: clip;   /* bloqueia scroll lateral sem travar scroll vertical */
 }
 
 body {
   margin: 0;
   background: var(--bg);
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ── Typography ───────────────────────────────────────────────────── */
