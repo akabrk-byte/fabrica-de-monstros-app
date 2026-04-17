@@ -46,7 +46,7 @@ export default function Login() {
       <div className="login-card">
 
         <div className="login-header">
-          <span className="login-brand">Implantação Timeline</span>
+          <span className="login-brand">FABRICA DE MONSTROS</span>
           <h1 className="login-title">Entrar</h1>
           <p className="login-subtitle">Acesse sua conta para continuar.</p>
         </div>
