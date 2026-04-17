@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase'
+import { supabaseAdminAdmin } from '../lib/supabaseAdminAdmin'
 import { TASK_TEMPLATES } from '../data/taskTemplates'
 
 const CHUNK_SIZE = 50
@@ -28,7 +28,7 @@ export async function seedUnitWithTasks(
 
   for (let i = 0; i < tasks.length; i += CHUNK_SIZE) {
     const chunk = tasks.slice(i, i + CHUNK_SIZE)
-    const { error } = await supabase.from('unit_tasks').insert(chunk)
+    const { error } = await supabaseAdmin.from('unit_tasks').insert(chunk)
     if (error) {
       console.error('Erro ao inserir tarefas:', error)
       throw error
@@ -42,7 +42,7 @@ export async function seedUnitWithTasks(
  * Remove todas as tarefas de uma unidade (usado antes de regenerar).
  */
 export async function deleteUnitTasks(unitId: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('unit_tasks')
     .delete()
     .eq('unit_id', unitId)
