@@ -22,6 +22,13 @@ interface AdminUser {
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
+function extractError(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (typeof err === 'object' && err !== null && 'message' in err)
+    return String((err as { message: unknown }).message)
+  return String(err)
+}
+
 const ROLE_LABELS: Record<UserRole, string> = {
   admin:    'Admin',
   manager:  'Gerente',
@@ -127,7 +134,7 @@ export default function AdminUsers() {
       console.log(`[AdminUsers] loadUsers: ${data?.length ?? 0} usuário(s) carregados`)
       setUsers(data ?? [])
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const msg = extractError(err)
       console.error('[AdminUsers] loadUsers: erro:', msg)
       setLoadError(`Não foi possível carregar os usuários. Erro: ${msg}`)
     } finally {
@@ -242,7 +249,7 @@ export default function AdminUsers() {
       }, 1200)
 
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const msg = extractError(err)
       console.error('[AdminUsers] handleCreateUser: erro:', msg)
       setNewError(msg)
     } finally {
@@ -298,7 +305,7 @@ export default function AdminUsers() {
       setEditUser(null)
       await loadUsers()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const msg = extractError(err)
       console.error('[AdminUsers] handleSaveEdit erro:', msg)
       setEditError(msg)
     } finally {
@@ -321,7 +328,7 @@ export default function AdminUsers() {
       setResetSuccess(true)
       setResetPwd('')
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro ao redefinir senha.'
+      const msg = extractError(err)
       console.error('[AdminUsers] handleDirectResetPassword erro:', msg)
       setResetError(msg)
     } finally {
