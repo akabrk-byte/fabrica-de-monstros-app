@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { supabaseAdmin } from '../lib/supabaseAdmin'
 
 // ─── Tipos ───────────────────────────────────────────────────────────
 
@@ -88,7 +89,7 @@ export async function listTaskStats(unitIds: string[]): Promise<TaskStats[]> {
 }
 
 export async function createUnit(data: CreateUnitData): Promise<Unit> {
-  const { data: created, error } = await supabase
+  const { data: created, error } = await supabaseAdmin
     .from('units')
     .insert({
       name: data.name.trim(),
