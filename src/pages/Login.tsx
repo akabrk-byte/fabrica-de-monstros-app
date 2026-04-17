@@ -91,9 +91,6 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="login-footer">
-          <button onClick={() => navigate('/')}>← Voltar para o início</button>
-        </div>
 
       </div>
     </div>
