@@ -5,25 +5,28 @@ import { useProfile } from '../hooks/useProfile'
 import '../pages/pages.css'
 
 interface AdminRouteProps {
-  children: ReactNode
+  children:  ReactNode
+  // 'admin'   → somente administradores
+  // 'manager' → administradores e gerentes
+  minRole?:  'admin' | 'manager'
 }
 
-export function AdminRoute({ children }: AdminRouteProps) {
+export function AdminRoute({ children, minRole = 'admin' }: AdminRouteProps) {
   const { user, loading: authLoading } = useAuthContext()
   const { profile, loading: profileLoading, error: profileError } = useProfile()
 
-  // ── Debug logs ─────────────────────────────────────────────────────
-  console.log('[AdminRoute] estado:', {
-    authLoading,
-    profileLoading,
-    userId:      user?.id ?? null,
-    role:        profile?.role ?? null,
-    profileError: profileError?.message ?? null,
-  })
+  const role = profile?.role
+  const isActive = profile?.active !== false
 
-  // Aguarda sessão e perfil carregarem
+  const hasAccess = isActive && (
+    minRole === 'manager'
+      ? role === 'admin' || role === 'manager'
+      : role === 'admin'
+  )
+
+  console.log('[AdminRoute] role:', role ?? 'null', '| minRole:', minRole, '| hasAccess:', hasAccess)
+
   if (authLoading || profileLoading) {
-    console.log('[AdminRoute] aguardando carregamento...')
     return (
       <div className="page">
         <main className="page-main">
@@ -33,15 +36,11 @@ export function AdminRoute({ children }: AdminRouteProps) {
     )
   }
 
-  // Não autenticado → login
   if (!user) {
-    console.log('[AdminRoute] sem usuário autenticado → /login')
     return <Navigate to="/login" replace />
   }
 
-  // Erro ao carregar perfil — não redireciona, mostra mensagem
   if (profileError && !profile) {
-    console.error('[AdminRoute] erro ao carregar perfil:', profileError.message)
     return (
       <div className="page">
         <main className="page-main">
@@ -56,9 +55,8 @@ export function AdminRoute({ children }: AdminRouteProps) {
     )
   }
 
-  // Autenticado mas sem permissão de admin → dashboard com mensagem
-  if (profile?.role !== 'admin') {
-    console.warn('[AdminRoute] role detectada:', profile?.role ?? 'null', '→ acesso negado, redirecionando')
+  if (!hasAccess) {
+    console.warn('[AdminRoute] acesso negado — role:', role ?? 'null', '→ /dashboard')
     return (
       <Navigate
         to="/dashboard"
@@ -68,6 +66,5 @@ export function AdminRoute({ children }: AdminRouteProps) {
     )
   }
 
-  console.log('[AdminRoute] admin confirmado, renderizando página')
   return <>{children}</>
 }

@@ -4,23 +4,25 @@ export type { UserRole, Profile } from '../contexts/ProfileContext'
 import { useProfileContext } from '../contexts/ProfileContext'
 
 // ─── useProfile ───────────────────────────────────────────────────────
-// Lê o perfil do ProfileContext compartilhado — um único fetch para toda a árvore.
 export function useProfile() {
   return useProfileContext()
 }
 
 // ─── useIsAdmin ───────────────────────────────────────────────────────
-// Retorna true apenas quando: role === 'admin' E active não é false.
-// NÃO depende de `loading` — profile nulo já garante false durante o fetch.
-// Isso evita flicker quando USER_UPDATED dispara re-fetch (loading vira true momentaneamente).
+// role === 'admin' E active !== false
 export function useIsAdmin(): boolean {
   const { profile } = useProfileContext()
-
   const isAdmin = profile?.role === 'admin' && profile?.active !== false
-  console.log('[useIsAdmin] userId:', profile?.id ?? 'null',
-    '| role:', profile?.role ?? 'null',
-    '| active:', profile?.active ?? 'null',
-    '| isAdmin:', isAdmin)
-
+  console.log('[useIsAdmin] role:', profile?.role ?? 'null', '| isAdmin:', isAdmin)
   return isAdmin
+}
+
+// ─── useIsManager ─────────────────────────────────────────────────────
+// role === 'admin' OU role === 'manager', E active !== false
+// Use para rotas/funcionalidades acessíveis a gestores e admins.
+export function useIsManager(): boolean {
+  const { profile } = useProfileContext()
+  const isManager = (profile?.role === 'admin' || profile?.role === 'manager') && profile?.active !== false
+  console.log('[useIsManager] role:', profile?.role ?? 'null', '| isManager:', isManager)
+  return isManager
 }

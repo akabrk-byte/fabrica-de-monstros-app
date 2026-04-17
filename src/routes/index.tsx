@@ -1,17 +1,23 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from '../components/ProtectedRoute'
 import { AdminRoute } from '../components/AdminRoute'
-import Home from '../pages/Home'
+import { useAuthContext } from '../contexts/AuthContext'
 import Login from '../pages/Login'
 import Dashboard from '../pages/Dashboard'
 import Units from '../pages/Units'
 import UnitTimeline from '../pages/UnitTimeline'
 import AdminUsers from '../pages/AdminUsers'
 
+function RootRedirect() {
+  const { user, loading } = useAuthContext()
+  if (loading) return null
+  return <Navigate to={user ? '/dashboard' : '/login'} replace />
+}
+
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
 
       <Route

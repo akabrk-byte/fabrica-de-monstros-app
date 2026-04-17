@@ -23,9 +23,9 @@ interface AdminUser {
 // ─── Helpers ──────────────────────────────────────────────────────────
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  admin:   'Admin',
-  manager: 'Gerente',
-  user:    'Usuário',
+  admin:    'Admin',
+  manager:  'Gerente',
+  usuario:  'Usuário',
 }
 
 function generateUsername(fullName: string): string {
@@ -59,7 +59,7 @@ interface EditUserForm {
 }
 
 const EMPTY_NEW: NewUserForm = {
-  full_name: '', username: '', email: '', password: '', cargo: '', role: 'user',
+  full_name: '', username: '', email: '', password: '', cargo: '', role: 'usuario',
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────
@@ -504,7 +504,7 @@ export default function AdminUsers() {
                 <select id="nu-role" className="field-input"
                   value={newForm.role} onChange={setNewField('role')}
                   disabled={saving}>
-                  <option value="user">Usuário</option>
+                  <option value="usuario">Usuário</option>
                   <option value="manager">Gerente</option>
                   <option value="admin">Admin</option>
                 </select>
@@ -569,7 +569,7 @@ export default function AdminUsers() {
                 <select id="eu-role" className="field-input"
                   value={editForm.role} onChange={setEditField('role')}
                   disabled={editSaving}>
-                  <option value="user">Usuário</option>
+                  <option value="usuario">Usuário</option>
                   <option value="manager">Gerente</option>
                   <option value="admin">Admin</option>
                 </select>

@@ -9,7 +9,10 @@
 -- FASE 1 — TIPOS (ENUM)
 -- ───────────────────────────────────────────────────────────────────
 
-CREATE TYPE user_role     AS ENUM ('admin', 'implantador', 'franqueado');
+-- user_role: admin = acesso total | manager = acesso operacional | user = acesso básico
+-- Mantido como enum para compatibilidade com task_templates.default_responsible_role.
+-- profiles.role usa TEXT + CHECK para permitir evolução sem ALTER TYPE.
+CREATE TYPE user_role     AS ENUM ('admin', 'manager', 'usuario');
 CREATE TYPE unit_status   AS ENUM ('planejamento', 'em_andamento', 'inaugurada', 'cancelada');
 CREATE TYPE task_status   AS ENUM ('não_iniciado', 'em_andamento', 'concluído', 'bloqueado');
 CREATE TYPE task_category AS ENUM (
@@ -41,7 +44,11 @@ CREATE TABLE profiles (
   id          UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name   TEXT        NOT NULL,
   email       TEXT        NOT NULL,
-  role        user_role   NOT NULL DEFAULT 'implantador',
+  username    TEXT,
+  cargo       TEXT,
+  role        TEXT        NOT NULL DEFAULT 'usuario'
+                          CONSTRAINT profiles_role_check CHECK (role IN ('admin', 'manager', 'usuario')),
+  active      BOOLEAN     NOT NULL DEFAULT TRUE,
   avatar_url  TEXT,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -208,24 +215,27 @@ CREATE TRIGGER trg_tasks_updated_at
 -- (profiles já existe aqui)
 -- ───────────────────────────────────────────────────────────────────
 
--- Retorna a role do usuário autenticado.
+-- Retorna a role do usuário autenticado como TEXT.
 -- SECURITY DEFINER: executa como dono da função, evitando recursão
 -- quando chamada dentro de políticas RLS da própria tabela profiles.
 CREATE OR REPLACE FUNCTION current_user_role()
-RETURNS user_role AS $$
-  SELECT role FROM profiles WHERE id = auth.uid()
+RETURNS TEXT AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid()
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- Cria perfil automaticamente quando um usuário se cadastra no Auth.
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO profiles (id, email, full_name)
+  INSERT INTO profiles (id, email, full_name, username, active)
   VALUES (
     NEW.id,
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1))
-  );
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
+    split_part(NEW.email, '@', 1),
+    TRUE
+  )
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -314,16 +324,16 @@ CREATE POLICY "units: acesso total para admin"
   USING (current_user_role() = 'admin')
   WITH CHECK (current_user_role() = 'admin');
 
-CREATE POLICY "units: implantador lê suas unidades"
+CREATE POLICY "units: manager lê suas unidades"
   ON units FOR SELECT TO authenticated
   USING (responsible_id = auth.uid());
 
-CREATE POLICY "units: implantador atualiza suas unidades"
+CREATE POLICY "units: manager atualiza suas unidades"
   ON units FOR UPDATE TO authenticated
   USING (responsible_id = auth.uid())
   WITH CHECK (responsible_id = auth.uid());
 
-CREATE POLICY "units: franqueado lê sua unidade"
+CREATE POLICY "units: usuario lê sua unidade"
   ON units FOR SELECT TO authenticated
   USING (franqueado_id = auth.uid());
 
@@ -334,7 +344,7 @@ CREATE POLICY "tasks: acesso total para admin"
   USING (current_user_role() = 'admin')
   WITH CHECK (current_user_role() = 'admin');
 
-CREATE POLICY "tasks: implantador acessa suas unidades"
+CREATE POLICY "tasks: manager acessa suas unidades"
   ON tasks FOR ALL TO authenticated
   USING (
     EXISTS (
@@ -351,7 +361,7 @@ CREATE POLICY "tasks: implantador acessa suas unidades"
     )
   );
 
-CREATE POLICY "tasks: franqueado lê sua unidade"
+CREATE POLICY "tasks: usuario lê sua unidade"
   ON tasks FOR SELECT TO authenticated
   USING (
     EXISTS (
@@ -368,7 +378,7 @@ CREATE POLICY "task_history: acesso total para admin"
   USING (current_user_role() = 'admin')
   WITH CHECK (current_user_role() = 'admin');
 
-CREATE POLICY "task_history: implantador acessa suas unidades"
+CREATE POLICY "task_history: manager acessa suas unidades"
   ON task_history FOR ALL TO authenticated
   USING (
     EXISTS (
@@ -385,7 +395,7 @@ CREATE POLICY "task_history: implantador acessa suas unidades"
     )
   );
 
-CREATE POLICY "task_history: franqueado lê sua unidade"
+CREATE POLICY "task_history: usuario lê sua unidade"
   ON task_history FOR SELECT TO authenticated
   USING (
     EXISTS (
@@ -456,137 +466,137 @@ VALUES
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001',
    'Identificação e avaliação do ponto comercial',
    'Levantamento de opções. Verificar fluxo, metragem mínima e localização conforme manual da franquia.',
-   'engenharia', -110, 'implantador', 2),
+   'engenharia', -110, 'manager', 2),
 
   ('cccccccc-0000-0000-0000-000000000003',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001',
    'Aprovação formal do ponto pela franqueadora',
    'Envio de fotos, planta baixa e formulário de análise para aprovação.',
-   'jurídico', -95, 'implantador', 3),
+   'jurídico', -95, 'manager', 3),
 
   ('cccccccc-0000-0000-0000-000000000004',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000001',
    'Assinatura do contrato de locação',
    'Negociação e assinatura do aluguel. Verificar cláusula de rescisão e prazo mínimo.',
-   'jurídico', -90, 'franqueado', 4),
+   'jurídico', -90, 'usuario', 4),
 
   -- Fase 2 — Estrutura (D-90 a D-55)
   ('cccccccc-0000-0000-0000-000000000005',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002',
    'Projeto arquitetônico elaborado e aprovado',
    'Arquiteto credenciado. Projeto deve seguir o manual de identidade visual da franquia.',
-   'engenharia', -85, 'implantador', 1),
+   'engenharia', -85, 'manager', 1),
 
   ('cccccccc-0000-0000-0000-000000000006',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002',
    'Alvará de obras solicitado na prefeitura',
    'Protocolo do pedido de alvará de construção/reforma. Guardar número do protocolo.',
-   'jurídico', -80, 'implantador', 2),
+   'jurídico', -80, 'manager', 2),
 
   ('cccccccc-0000-0000-0000-000000000007',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002',
    'Início das obras de reforma',
    'Contratação da empreiteira e início efetivo das obras conforme projeto aprovado.',
-   'engenharia', -75, 'implantador', 3),
+   'engenharia', -75, 'manager', 3),
 
   ('cccccccc-0000-0000-0000-000000000008',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002',
    'Pedido de equipamentos principais',
    'Emissão do pedido de compra dos equipamentos obrigatórios. Atenção ao prazo de entrega.',
-   'compras', -65, 'implantador', 4),
+   'compras', -65, 'manager', 4),
 
   ('cccccccc-0000-0000-0000-000000000009',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000002',
    'Pedido de mobiliário e comunicação visual',
    'Mobiliário padrão e materiais de comunicação visual (fachada, adesivos, displays).',
-   'compras', -60, 'implantador', 5),
+   'compras', -60, 'manager', 5),
 
   -- Fase 3 — Filiações (D-60 a D-30)
   ('cccccccc-0000-0000-0000-000000000010',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000003',
    'Abertura do CNPJ',
    'Registro na Receita Federal. Definir regime tributário com contador.',
-   'jurídico', -60, 'franqueado', 1),
+   'jurídico', -60, 'usuario', 1),
 
   ('cccccccc-0000-0000-0000-000000000011',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000003',
    'Alvará de funcionamento solicitado',
    'Protocolo do pedido de alvará de funcionamento com CNPJ já obtido.',
-   'jurídico', -55, 'implantador', 2),
+   'jurídico', -55, 'manager', 2),
 
   ('cccccccc-0000-0000-0000-000000000012',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000003',
    'Abertura de conta bancária PJ',
    'Conta corrente PJ para operação e recebimento de clientes.',
-   'operação', -50, 'franqueado', 3),
+   'operação', -50, 'usuario', 3),
 
   ('cccccccc-0000-0000-0000-000000000013',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000003',
    'Contratação da equipe inicial',
    'Recrutamento, seleção e contratação de vendedores, caixa e gerente de loja.',
-   'rh', -45, 'franqueado', 4),
+   'rh', -45, 'usuario', 4),
 
   ('cccccccc-0000-0000-0000-000000000014',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000003',
    'Treinamento inicial da equipe na franqueadora',
    'Treinamento presencial ou online no padrão da rede.',
-   'rh', -35, 'implantador', 5),
+   'rh', -35, 'manager', 5),
 
   -- Fase 4 — Final (D-30 a D-1)
   ('cccccccc-0000-0000-0000-000000000015',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000004',
    'Conclusão e vistoria das obras',
    'Checklist final: elétrica, hidráulica, acabamento e pintura.',
-   'engenharia', -25, 'implantador', 1),
+   'engenharia', -25, 'manager', 1),
 
   ('cccccccc-0000-0000-0000-000000000016',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000004',
    'Instalação e configuração dos sistemas de gestão',
    'Setup do PDV, estoque, integração com a franqueadora e impressoras fiscais.',
-   'sistemas', -20, 'implantador', 2),
+   'sistemas', -20, 'manager', 2),
 
   ('cccccccc-0000-0000-0000-000000000017',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000004',
    'Recebimento e montagem de mobiliário',
    'Conferência de NF, montagem e disposição conforme layout aprovado.',
-   'compras', -18, 'implantador', 3),
+   'compras', -18, 'manager', 3),
 
   ('cccccccc-0000-0000-0000-000000000018',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000004',
    'Vistoria da vigilância sanitária',
    'Agendamento e recebimento da vistoria. Providenciar documentos exigidos.',
-   'jurídico', -12, 'implantador', 4),
+   'jurídico', -12, 'manager', 4),
 
   ('cccccccc-0000-0000-0000-000000000019',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000004',
    'Campanha de divulgação da inauguração',
    'Peças em redes sociais, panfletagem e assessoria de imprensa local.',
-   'marketing', -10, 'implantador', 5),
+   'marketing', -10, 'manager', 5),
 
   ('cccccccc-0000-0000-0000-000000000020',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000004',
    'Simulação de operação (dry run)',
    'Funcionamento completo por 1 dia antes da abertura. Identificar gaps de processo.',
-   'rh', -5, 'implantador', 6),
+   'rh', -5, 'manager', 6),
 
   -- Fase 5 — Pós-obra (D0 a D+30)
   ('cccccccc-0000-0000-0000-000000000021',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000005',
    'Inauguração da unidade',
    'Abertura oficial ao público.',
-   'operação', 0, 'implantador', 1),
+   'operação', 0, 'manager', 1),
 
   ('cccccccc-0000-0000-0000-000000000022',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000005',
    'Acompanhamento semana 1 pós-abertura',
    'Suporte presencial ou remoto. Relatório de ocorrências diárias.',
-   'operação', 7, 'implantador', 2),
+   'operação', 7, 'manager', 2),
 
   ('cccccccc-0000-0000-0000-000000000023',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000005',
    'Relatório final de implantação',
    'Elaboração e entrega do relatório completo para a franqueadora.',
-   'operação', 15, 'implantador', 3),
+   'operação', 15, 'manager', 3),
 
   ('cccccccc-0000-0000-0000-000000000024',
    'aaaaaaaa-0000-0000-0000-000000000001', 'bbbbbbbb-0000-0000-0000-000000000005',

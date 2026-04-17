@@ -5,10 +5,11 @@ import { useAuthContext } from './AuthContext'
 // ─── Types ────────────────────────────────────────────────────────────
 // Definidos aqui para evitar import circular (useProfile importa deste arquivo)
 
-export type UserRole = 'admin' | 'manager' | 'user'
+export type UserRole = 'admin' | 'manager' | 'usuario'
 
 export interface Profile {
   id:         string
+  email:      string
   full_name:  string
   username:   string | null
   cargo:      string | null
@@ -16,6 +17,7 @@ export interface Profile {
   role:       UserRole
   active:     boolean | null
   created_at: string
+  updated_at: string
 }
 
 export interface ProfileContextValue {
@@ -47,12 +49,21 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
     const { data, error: fetchErr } = await supabase
       .from('profiles')
-      .select('id, full_name, username, cargo, avatar_url, role, active, created_at')
+      .select('id, email, full_name, username, cargo, avatar_url, role, active, created_at, updated_at')
       .eq('id', userId)
       .single()
 
     if (fetchErr) {
       console.error('[Profile] erro ao buscar perfil:', fetchErr.message, '| code:', fetchErr.code)
+
+      // 500 = erro de função RLS (ex: current_user_role() com tipo errado). Requer migration no BD.
+      if (fetchErr.code === 'PGRST_SERVER_ERROR' || fetchErr.message.includes('cannot cast')) {
+        console.error('[Profile] ERRO 500 — provavelmente current_user_role() com tipo incompatível. Rode migration_fix_current_user_role.sql no Supabase SQL Editor.')
+        setProfile(null)
+        setError(new Error('Erro interno do banco. Contate o administrador.'))
+        setLoading(false)
+        return
+      }
 
       // Fallback: tenta sem colunas novas (active) caso migration não tenha rodado
       if (fetchErr.message.includes('active') || fetchErr.code === '42703') {
@@ -68,7 +79,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
           setProfile(null)
           setError(new Error(e2.message))
         } else {
-          const p = { ...(d2 as Omit<Profile, 'active'>), active: null } as Profile
+          const p = { ...(d2 as Omit<Profile, 'active' | 'updated_at'>), active: null, updated_at: '' } as Profile
           console.log('[Profile] perfil carregado (fallback):', { id: p.id, role: p.role, active: p.active })
           setProfile(p)
           setError(null)
