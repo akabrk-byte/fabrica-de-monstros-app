@@ -4,17 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "487fd68dbc54782b",
+        "id": "6f737a7b6746e4e8",
         "type": "tabs",
         "children": [
           {
-            "id": "1a717519b59d5993",
+            "id": "4abdcce853bdb241",
             "type": "leaf",
             "state": {
-              "type": "graph",
+              "type": "empty",
               "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Visualização em gráfico"
+              "icon": "lucide-file",
+              "title": "Nova aba"
             }
           }
         ]
@@ -74,7 +74,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "right": {
     "id": "970a4cc9495288e7",
@@ -162,7 +163,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 300,
+    "collapsed": true
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -175,8 +177,11 @@
       "bases:Criar nova base": false
     }
   },
-  "active": "1a717519b59d5993",
+  "active": "4abdcce853bdb241",
   "lastOpenFiles": [
+    "src/pages/UnitTimeline.tsx.tmp.21796.1776894783044",
+    "supabase/migration_add_start_date.sql",
+    "node_modules/word-wrap/README.md",
     "node_modules/@supabase/auth-js/dist/main/lib/webauthn.errors.js",
     "node_modules/@supabase/auth-js/dist/main/lib/webauthn.js",
     "node_modules/@supabase/auth-js/dist/main/lib/polyfills.js",
@@ -186,8 +191,6 @@
     "node_modules/@supabase/auth-js/dist/main/lib/version.js",
     "node_modules/@supabase/auth-js/dist/main/lib/fetch.js",
     "node_modules/@supabase/auth-js/dist/main/index.js",
-    "node_modules/@supabase/realtime-js/dist/main/phoenix/presenceAdapter.js",
-    "node_modules/@supabase/realtime-js/dist/main/RealtimePresence.js",
     "README.md",
     "Sem título.md",
     "dist/favicon.svg",

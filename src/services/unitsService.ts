@@ -11,6 +11,7 @@ export interface Unit {
   slug: string
   city: string | null
   state: string | null
+  start_date: string | null           // 'YYYY-MM-DD'
   inauguration_date: string | null   // 'YYYY-MM-DD'
   status: UnitStatus
   template_applied: boolean
@@ -25,6 +26,7 @@ export interface CreateUnitData {
   name: string
   city?: string
   state?: string
+  start_date?: string
   inauguration_date?: string
   notes?: string
 }
@@ -96,6 +98,7 @@ export async function createUnit(data: CreateUnitData): Promise<Unit> {
       slug: generateSlug(data.name),
       city: data.city?.trim() || null,
       state: data.state?.trim() || null,
+      start_date: data.start_date || null,
       inauguration_date: data.inauguration_date || null,
       notes: data.notes?.trim() || null,
     })
@@ -111,6 +114,7 @@ export async function updateUnit(id: string, data: UpdateUnitData): Promise<Unit
   if (data.name !== undefined)               patch.name = data.name.trim()
   if (data.city !== undefined)               patch.city = data.city?.trim() || null
   if (data.state !== undefined)              patch.state = data.state?.trim() || null
+  if (data.start_date !== undefined)         patch.start_date = data.start_date || null
   if (data.inauguration_date !== undefined)  patch.inauguration_date = data.inauguration_date || null
   if (data.status !== undefined)             patch.status = data.status
   if (data.notes !== undefined)              patch.notes = data.notes?.trim() || null

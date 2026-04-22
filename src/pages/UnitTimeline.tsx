@@ -4,7 +4,7 @@ import {
 } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { AppHeader } from '../components/AppHeader'
-import { getUnit, type Unit } from '../services/unitsService'
+import { getUnit, deleteUnit, type Unit } from '../services/unitsService'
 import {
   listTasksByUnit, updateTaskStatus, deleteTask,
   type Task, type TaskStatus, type TaskCategory,
@@ -122,12 +122,17 @@ function dueDayLabel(days: number | null): string | null {
   return days > 0 ? `D+${days}` : `D${days}`
 }
 
-function isOverdue(task: Task): boolean {
-  if (!task.data_planejada || task.status === 'concluido') return false
-  const [y, m, d] = task.data_planejada.split('-').map(Number)
-  const due   = new Date(y, m - 1, d)
+function getOverdueInfo(
+  task: Task,
+  isPhaseUnlocked: boolean,
+): { isOverdue: boolean; daysOverdue: number } {
+  if (!task.data_planejada || task.status === 'concluido' || !isPhaseUnlocked)
+    return { isOverdue: false, daysOverdue: 0 }
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  return due < today
+  const [y, m, d] = task.data_planejada.split('-').map(Number)
+  const due  = new Date(y, m - 1, d)
+  const diff = Math.round((today.getTime() - due.getTime()) / 86_400_000)
+  return diff > 0 ? { isOverdue: true, daysOverdue: diff } : { isOverdue: false, daysOverdue: 0 }
 }
 
 // ─── Sub-componentes ──────────────────────────────────────────────────
@@ -150,16 +155,19 @@ interface TaskCardProps {
   onAssignUpdate:     () => void
   updating:           boolean
   deleting:           boolean
+  isPhaseUnlocked:    boolean
 }
 
 function TaskCard({
   task, responsibleProfile, onStatusChange, onDeleteTask,
   onCardClick, onAssignUpdate, updating, deleting,
+  isPhaseUnlocked,
 }: TaskCardProps) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [assigning,     setAssigning]     = useState(false)
 
-  const overdue  = isOverdue(task)
+  const { isOverdue, daysOverdue } = getOverdueInfo(task, isPhaseUnlocked)
+  const overdueLevel = daysOverdue >= 15 ? 'critical' : daysOverdue >= 7 ? 'warn' : isOverdue ? 'overdue' : null
   const dayLabel = dueDayLabel(task.offset_dias)
   const done     = task.status === 'concluido'
 
@@ -171,12 +179,18 @@ function TaskCard({
     <div
       className={[
         'task-card',
-        done     ? 'task-card--done'     : '',
-        updating ? 'task-card--updating' : '',
-        deleting ? 'task-card--deleting' : '',
-        overdue  ? 'task-card--overdue'  : '',
+        done        ? 'task-card--done'     : '',
+        updating    ? 'task-card--updating' : '',
+        deleting    ? 'task-card--deleting' : '',
+        overdueLevel ? 'task-card--overdue' : '',
       ].filter(Boolean).join(' ')}
-      style={{ borderLeftColor: done ? '#10b981' : overdue ? '#ef4444' : 'var(--border)' }}
+      style={{
+        borderLeftColor: done ? '#10b981'
+          : overdueLevel === 'critical' ? '#ef4444'
+          : overdueLevel === 'warn'     ? '#f59e0b'
+          : overdueLevel === 'overdue'  ? '#f97316'
+          : 'var(--border)',
+      }}
     >
       <div className="task-card-top">
         <CategoryBadge category={task.categoria} />
@@ -225,8 +239,11 @@ function TaskCard({
       <div className="task-meta">
         {dayLabel && <span className="task-day-label">{dayLabel}</span>}
         {task.data_planejada && (
-          <span className={`task-due-date ${overdue ? 'task-due-date--overdue' : ''}`}>
-            {overdue ? '⚠ Atrasado · ' : ''}{formatDate(task.data_planejada)}
+          <span className={`task-due-date${overdueLevel ? ` task-due-date--${overdueLevel}` : ''}`}>
+            {isOverdue
+              ? `⚠ ${daysOverdue} dia${daysOverdue !== 1 ? 's' : ''} de atraso`
+              : formatDate(task.data_planejada)
+            }
           </span>
         )}
 
@@ -300,22 +317,23 @@ interface PhaseGroup {
 }
 
 interface PhaseSectionProps {
-  phase:          PhaseGroup
-  color:          string
-  tasks:          Task[]
-  allTasks:       Task[]
-  profilesMap:    Map<string, ProfileSummary>
-  onStatusChange: (id: string, s: TaskStatus) => void
-  onDeleteTask:   (id: string) => void
-  onCardClick:    (task: Task) => void
-  onAssignUpdate: () => void
-  updatingIds:    Set<string>
-  deletingIds:    Set<string>
-  onAddTask:      (faseOrder: number, faseNome: string) => void
-  hasFilter:      boolean
+  phase:           PhaseGroup
+  color:           string
+  tasks:           Task[]
+  allTasks:        Task[]
+  profilesMap:     Map<string, ProfileSummary>
+  onStatusChange:  (id: string, s: TaskStatus) => void
+  onDeleteTask:    (id: string) => void
+  onCardClick:     (task: Task) => void
+  onAssignUpdate:  () => void
+  updatingIds:     Set<string>
+  deletingIds:     Set<string>
+  onAddTask:       (faseOrder: number, faseNome: string) => void
+  hasFilter:       boolean
+  isPhaseUnlocked: boolean
 }
 
-function PhaseSection({ phase, color, tasks, allTasks, profilesMap, onStatusChange, onDeleteTask, onCardClick, onAssignUpdate, updatingIds, deletingIds, onAddTask, hasFilter }: PhaseSectionProps) {
+function PhaseSection({ phase, color, tasks, allTasks, profilesMap, onStatusChange, onDeleteTask, onCardClick, onAssignUpdate, updatingIds, deletingIds, onAddTask, hasFilter, isPhaseUnlocked }: PhaseSectionProps) {
   const completed = allTasks.filter((t) => t.status === 'concluido').length
   const total     = allTasks.length
   const pct       = total > 0 ? Math.round((completed / total) * 100) : null
@@ -362,6 +380,7 @@ function PhaseSection({ phase, color, tasks, allTasks, profilesMap, onStatusChan
               onAssignUpdate={onAssignUpdate}
               updating={updatingIds.has(task.id)}
               deleting={deletingIds.has(task.id)}
+              isPhaseUnlocked={isPhaseUnlocked}
             />
           ))}
         </div>
@@ -405,6 +424,11 @@ export default function UnitTimeline() {
   const [showRegenConfirm, setShowRegenConfirm] = useState(false)
   const [regenerating,     setRegenerating]     = useState(false)
   const [regenError,       setRegenError]       = useState('')
+
+  // ── Excluir unidade ───────────────────────────────────────────────────
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deletingUnit,      setDeletingUnit]      = useState(false)
+  const [deleteUnitError,   setDeleteUnitError]   = useState('')
 
   // ── Carga ─────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -496,6 +520,20 @@ export default function UnitTimeline() {
     }
   }, [tasks])
 
+  // ── Excluir unidade ───────────────────────────────────────────────────
+  const handleDeleteUnit = async () => {
+    if (!unitId) return
+    setDeletingUnit(true)
+    setDeleteUnitError('')
+    try {
+      await deleteUnit(unitId)
+      navigate('/units')
+    } catch {
+      setDeleteUnitError('Erro ao excluir a unidade. Tente novamente.')
+      setDeletingUnit(false)
+    }
+  }
+
   // ── Abrir modal de tarefas ────────────────────────────────────────────
   const openAddModal = (faseOrder: number, faseNome: string) => {
     setTmFaseOrder(faseOrder)
@@ -564,6 +602,28 @@ export default function UnitTimeline() {
     return map
   }, [tasks])
 
+  const phaseUnlockedMap = useMemo(() => {
+    const map = new Map<number, boolean>()
+    const sortedOrders = phases.map((p) => p.fase_order).sort((a, b) => a - b)
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+
+    sortedOrders.forEach((order, idx) => {
+      if (idx === 0) {
+        if (unit?.start_date) {
+          const [sy, sm, sd] = unit.start_date.split('-').map(Number)
+          map.set(order, new Date(sy, sm - 1, sd) <= today)
+        } else {
+          map.set(order, true)
+        }
+      } else {
+        const prevOrder = sortedOrders[idx - 1]
+        const prevTasks = allTasksByPhase.get(prevOrder) ?? []
+        map.set(order, prevTasks.length > 0 && prevTasks.every((t) => t.status === 'concluido'))
+      }
+    })
+    return map
+  }, [phases, allTasksByPhase, unit])
+
   const totalDone  = tasks.filter((t) => t.status === 'concluido').length
   const totalTasks = tasks.length
   const totalPct   = totalTasks > 0 ? Math.round((totalDone / totalTasks) * 100) : 0
@@ -610,6 +670,13 @@ export default function UnitTimeline() {
                 title="Regenerar tarefas"
               >
                 ⚙
+              </button>
+              <button
+                className="tl-delete-unit-btn"
+                onClick={() => { setDeleteUnitError(''); setShowDeleteConfirm(true) }}
+                title="Excluir unidade"
+              >
+                Excluir unidade
               </button>
             </div>
             <h2 className="tl-unit-name">{unit.name}</h2>
@@ -708,6 +775,7 @@ export default function UnitTimeline() {
                   deletingIds={deletingIds}
                   onAddTask={openAddModal}
                   hasFilter={hasFilter}
+                  isPhaseUnlocked={phaseUnlockedMap.get(phase.fase_order) ?? false}
                 />
               ))}
             </div>
@@ -755,6 +823,44 @@ export default function UnitTimeline() {
                 ⚠ Defina uma data de inauguração na unidade para habilitar a regeneração.
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: Confirmar exclusão da unidade ──────────────────────── */}
+      {showDeleteConfirm && (
+        <div
+          className="modal-overlay"
+          onClick={(e) => { if (e.target === e.currentTarget && !deletingUnit) setShowDeleteConfirm(false) }}
+        >
+          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="delete-unit-title">
+            <div className="modal-header">
+              <h2 className="modal-title" id="delete-unit-title">Excluir unidade?</h2>
+              <button className="modal-close" onClick={() => setShowDeleteConfirm(false)} disabled={deletingUnit} aria-label="Fechar">✕</button>
+            </div>
+            <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6, margin: 0 }}>
+              Esta ação irá <strong>excluir permanentemente</strong> a unidade{' '}
+              <strong>{unit?.name}</strong> e todas as suas tarefas.
+              <br /><br />
+              Esta operação não pode ser desfeita.
+            </p>
+            {deleteUnitError && <p className="modal-error">{deleteUnitError}</p>}
+            <div className="modal-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deletingUnit}
+              >
+                Cancelar
+              </button>
+              <button
+                className="btn tl-btn-danger"
+                onClick={handleDeleteUnit}
+                disabled={deletingUnit}
+              >
+                {deletingUnit ? 'Excluindo...' : 'Excluir permanentemente'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -113,7 +113,7 @@ const BR_STATES = [
   'RJ','RN','RO','RR','RS','SC','SE','SP','TO',
 ]
 
-const EMPTY_FORM: CreateUnitData = { name: '', city: '', state: '', inauguration_date: '' }
+const EMPTY_FORM: CreateUnitData = { name: '', city: '', state: '', start_date: '', inauguration_date: '' }
 
 // Data mínima de inauguração: 30 dias a partir de hoje
 function minInaugDate(): string {
@@ -371,6 +371,20 @@ export default function Units() {
                 </div>
 
                 <div className="field">
+                  <label className="field-label" htmlFor="u-start-date">
+                    Data de início da operação
+                  </label>
+                  <input
+                    id="u-start-date"
+                    type="date"
+                    className="field-input"
+                    placeholder="dd/mm/aaaa"
+                    value={form.start_date}
+                    onChange={set('start_date')}
+                  />
+                </div>
+
+                <div className="field">
                   <label className="field-label" htmlFor="u-date">
                     Data prevista de inauguração *
                   </label>
@@ -416,6 +430,14 @@ export default function Units() {
                       <span className="wizard-summary-label">Localização</span>
                       <span className="wizard-summary-value">
                         {[form.city, form.state].filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  {form.start_date && (
+                    <div className="wizard-summary-row">
+                      <span className="wizard-summary-label">Início da operação</span>
+                      <span className="wizard-summary-value">
+                        {formatDate(form.start_date)}
                       </span>
                     </div>
                   )}

@@ -91,6 +91,55 @@
   }
 }
 
+/* ── Delete unit button ───────────────────────────────────────────── */
+.tl-delete-unit-btn {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: #f87171;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.6);
+    color: #fca5a5;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #ef4444;
+    outline-offset: 2px;
+  }
+}
+
+/* ── Danger confirm button ────────────────────────────────────────── */
+.tl-btn-danger {
+  background: #ef4444;
+  color: #fff;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #dc2626;
+    border-color: #dc2626;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
 /* ── Overall progress card ────────────────────────────────────────── */
 .tl-progress-card {
   background: linear-gradient(135deg, #141414 0%, #111111 100%);
@@ -550,8 +599,18 @@
 .task-due-date { color: var(--text-muted); }
 
 .task-due-date--overdue {
-  color: #f87171;
+  color: #f97316;
   font-weight: 600;
+}
+
+.task-due-date--warn {
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.task-due-date--critical {
+  color: #ef4444;
+  font-weight: 700;
 }
 
 .task-responsible {
@@ -876,6 +935,12 @@ input[type="date"].field-input::-webkit-calendar-picker-indicator {
   .tl-regen-btn {
     margin-left: auto;
     flex-shrink: 0;
+  }
+
+  .tl-delete-unit-btn {
+    flex-shrink: 0;
+    font-size: 12px;
+    padding: 6px 10px;
   }
 
   .task-card {

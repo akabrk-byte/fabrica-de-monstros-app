@@ -19,13 +19,14 @@ export interface UnitDashboardRow {
 }
 
 export interface CriticalTask {
-  id:            string
-  nome:          string
-  status:        TaskStatus
+  id:             string
+  nome:           string
+  status:         TaskStatus
   data_planejada: string
-  offset_dias:   number | null
-  unit_id:       string
-  unit_name:     string
+  offset_dias:    number | null
+  unit_id:        string
+  unit_name:      string
+  daysOverdue:    number
 }
 
 export interface DashboardData {
@@ -37,10 +38,15 @@ export interface DashboardData {
 // ─── Fetch principal ─────────────────────────────────────────────────
 
 export async function fetchDashboardData(): Promise<DashboardData> {
-  const todayStr = new Date().toISOString().split('T')[0]
+  const today    = new Date(); today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().split('T')[0]
+
+  const fifteenDaysAgo = new Date(today)
+  fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15)
+  const fifteenDaysAgoStr = fifteenDaysAgo.toISOString().split('T')[0]
 
   // ── Fase 1: paralelo ─────────────────────────────────────────────────
-  const [units, overdueRows, critRows] = await Promise.all([
+  const [units, overdueRows, critCandidates] = await Promise.all([
 
     listUnits(),
 
@@ -51,26 +57,21 @@ export async function fetchDashboardData(): Promise<DashboardData> {
       .lt('data_planejada', todayStr)
       .neq('status', 'concluido')
       .then(({ data, error }) => {
-        if (error) {
-          console.error('[dashboardService] overdueRows query error:', error)
-          throw error
-        }
+        if (error) throw error
         return (data ?? []) as { unit_id: string }[]
       }),
 
-    // Top 5 urgentes: não concluídas, mais próximas do prazo (sem join FK)
+    // Candidatas a críticas: 15+ dias de atraso, com fase_order para gate
     supabase
       .from('unit_tasks')
-      .select('id, nome, status, data_planejada, offset_dias, unit_id')
+      .select('id, nome, status, data_planejada, offset_dias, unit_id, fase_order')
       .neq('status', 'concluido')
       .not('data_planejada', 'is', null)
+      .lt('data_planejada', fifteenDaysAgoStr)
       .order('data_planejada', { ascending: true })
-      .limit(5)
+      .limit(50)
       .then(({ data, error }) => {
-        if (error) {
-          console.error('[dashboardService] critRows query error:', error)
-          throw error
-        }
+        if (error) throw error
         return (data ?? []) as {
           id:             string
           nome:           string
@@ -78,14 +79,26 @@ export async function fetchDashboardData(): Promise<DashboardData> {
           data_planejada: string
           offset_dias:    number | null
           unit_id:        string
+          fase_order:     number
         }[]
       }),
   ])
 
-  // ── Fase 2: stats por unidade (precisa dos IDs da fase 1) ────────────
-  const statsArr = units.length > 0
-    ? await listTaskStats(units.map((u) => u.id))
-    : []
+  // ── Fase 2: paralelo ─────────────────────────────────────────────────
+  const critUnitIds = [...new Set(critCandidates.map((r) => r.unit_id))]
+
+  const [statsArr, phaseTaskRows] = await Promise.all([
+    units.length > 0 ? listTaskStats(units.map((u) => u.id)) : Promise.resolve([]),
+
+    // Todas as tarefas (status + fase_order) das unidades com candidatas
+    critUnitIds.length > 0
+      ? supabase
+          .from('unit_tasks')
+          .select('unit_id, fase_order, status')
+          .in('unit_id', critUnitIds)
+          .then(({ data }) => (data ?? []) as { unit_id: string; fase_order: number; status: string }[])
+      : Promise.resolve([] as { unit_id: string; fase_order: number; status: string }[]),
+  ])
 
   // ── Derivações ────────────────────────────────────────────────────────
   const statsMap = new Map(statsArr.map((s) => [s.unit_id, s]))
@@ -94,8 +107,6 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   for (const row of overdueRows) {
     overdueByUnit.set(row.unit_id, (overdueByUnit.get(row.unit_id) ?? 0) + 1)
   }
-
-  const today = new Date(); today.setHours(0, 0, 0, 0)
 
   const unitRows: UnitDashboardRow[] = units.map((unit) => {
     const stats = statsMap.get(unit.id) ?? { unit_id: unit.id, total: 0, completed: 0 }
@@ -124,19 +135,58 @@ export async function fetchDashboardData(): Promise<DashboardData> {
   const totalTasks     = statsArr.reduce((s, r) => s + r.total, 0)
   const completionRate = totalTasks > 0 ? Math.round(totalCompleted / totalTasks * 100) : 0
 
-  // ── Tarefas críticas ──────────────────────────────────────────────────
-  const criticalTasks: CriticalTask[] = critRows.map((row) => {
-    const unitMatch = units.find((u) => u.id === row.unit_id)
-    return {
-      id:             row.id,
-      nome:           row.nome,
-      status:         row.status as TaskStatus,
-      data_planejada: row.data_planejada,
-      offset_dias:    row.offset_dias,
-      unit_id:        row.unit_id,
-      unit_name:      unitMatch?.name ?? '—',
-    }
-  })
+  // ── Tarefas críticas: gate por fase ──────────────────────────────────
+
+  // Monta mapa: unitId → Map<faseOrder, {total, done}>
+  const unitPhaseStats = new Map<string, Map<number, { total: number; done: number }>>()
+  for (const row of phaseTaskRows) {
+    if (!unitPhaseStats.has(row.unit_id)) unitPhaseStats.set(row.unit_id, new Map())
+    const phases = unitPhaseStats.get(row.unit_id)!
+    const ph = phases.get(row.fase_order) ?? { total: 0, done: 0 }
+    ph.total++
+    if (row.status === 'concluido') ph.done++
+    phases.set(row.fase_order, ph)
+  }
+
+  const criticalTasks: CriticalTask[] = critCandidates
+    .filter((row) => {
+      const unit   = units.find((u) => u.id === row.unit_id)
+      const phases = unitPhaseStats.get(row.unit_id)
+      if (!phases) return false
+
+      const sortedOrders = [...phases.keys()].sort((a, b) => a - b)
+      const phaseIdx     = sortedOrders.indexOf(row.fase_order)
+
+      if (phaseIdx === 0) {
+        // Primeira fase: liberada apenas após start_date
+        if (unit?.start_date) {
+          const [sy, sm, sd] = unit.start_date.split('-').map(Number)
+          return new Date(sy, sm - 1, sd) <= today
+        }
+        return true
+      }
+
+      // Fases seguintes: liberadas apenas quando a fase anterior está 100% concluída
+      const prevOrder = sortedOrders[phaseIdx - 1]
+      const prev      = phases.get(prevOrder)!
+      return prev.total > 0 && prev.done === prev.total
+    })
+    .slice(0, 5)
+    .map((row) => {
+      const [y, m, d] = row.data_planejada.split('-').map(Number)
+      const due = new Date(y, m - 1, d)
+      const daysOverdue = Math.round((today.getTime() - due.getTime()) / 86_400_000)
+      return {
+        id:             row.id,
+        nome:           row.nome,
+        status:         row.status as TaskStatus,
+        data_planejada: row.data_planejada,
+        offset_dias:    row.offset_dias,
+        unit_id:        row.unit_id,
+        unit_name:      units.find((u) => u.id === row.unit_id)?.name ?? '—',
+        daysOverdue,
+      }
+    })
 
   // ── Ordenação da tabela de unidades (vermelho → amarelo → restantes) ──
   unitRows.sort((a, b) => {

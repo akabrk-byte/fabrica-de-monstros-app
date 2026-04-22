@@ -49,13 +49,6 @@ function alertLevel(row: UnitDashboardRow): 'red' | 'yellow' | null {
   return null
 }
 
-function isOverdueTask(dataPlanejada: string): boolean {
-  const [y, m, d] = dataPlanejada.split('-').map(Number)
-  const due   = new Date(y, m - 1, d)
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  return due < today
-}
-
 // ─── KPI Card ─────────────────────────────────────────────────────────
 
 interface KPICardProps {
@@ -152,7 +145,6 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 function CriticalTaskItem({ task, onClick }: { task: CriticalTask; onClick: () => void }) {
-  const overdue = isOverdueTask(task.data_planejada)
   const dayLabel = task.offset_dias !== null
     ? (task.offset_dias === 0 ? 'D0'
       : task.offset_dias > 0 ? `D+${task.offset_dias}`
@@ -176,8 +168,8 @@ function CriticalTaskItem({ task, onClick }: { task: CriticalTask; onClick: () =
         <div className="critical-meta">
           {dayLabel && <span className="critical-day">{dayLabel}</span>}
           <span className="critical-unit">{task.unit_name}</span>
-          <span className={overdue ? 'critical-date critical-date--overdue' : 'critical-date'}>
-            {overdue ? '⚠ ' : ''}{formatDate(task.data_planejada)}
+          <span className="critical-date critical-date--overdue">
+            ⚠ {task.daysOverdue} dia{task.daysOverdue !== 1 ? 's' : ''} de atraso
           </span>
         </div>
       </div>
@@ -343,11 +335,15 @@ export default function Dashboard() {
           <section className="dash-section">
             <div className="dash-section-header">
               <h2 className="dash-section-title">Tarefas críticas</h2>
-              <span className="dash-section-sub">5 mais urgentes</span>
+              <span className="dash-section-sub">
+                {data.criticalTasks.length > 0
+                  ? `${data.criticalTasks.length} mais urgentes`
+                  : 'Mais de 15 dias de atraso'}
+              </span>
             </div>
 
             {data.criticalTasks.length === 0 ? (
-              <p className="dash-empty">Nenhuma tarefa urgente no momento.</p>
+              <p className="dash-empty">Nenhuma tarefa com mais de 15 dias de atraso.</p>
             ) : (
               <div className="critical-list">
                 {data.criticalTasks.map((task) => (
