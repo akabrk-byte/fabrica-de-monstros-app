@@ -141,6 +141,13 @@ export async function getUnit(id: string): Promise<Unit> {
 }
 
 export async function deleteUnit(id: string): Promise<void> {
+  // unit_tasks não tem ON DELETE CASCADE, então deleta as tarefas primeiro
+  const { error: tasksError } = await supabaseAdmin
+    .from('unit_tasks')
+    .delete()
+    .eq('unit_id', id)
+  if (tasksError) throw tasksError
+
   const { error } = await supabaseAdmin.from('units').delete().eq('id', id)
   if (error) throw error
 }
