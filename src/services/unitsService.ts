@@ -141,6 +141,6 @@ export async function getUnit(id: string): Promise<Unit> {
 }
 
 export async function deleteUnit(id: string): Promise<void> {
-  const { error } = await supabase.from('units').delete().eq('id', id)
+  const { error } = await supabaseAdmin.from('units').delete().eq('id', id)
   if (error) throw error
 }
