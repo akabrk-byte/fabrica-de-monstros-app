@@ -687,6 +687,11 @@ export default function UnitTimeline() {
             </div>
             <h2 className="tl-unit-name">{unit.name}</h2>
             <div className="tl-unit-meta">
+              {unit.start_date && (
+                <span className="tl-start-date">
+                  Início da operação: <strong>{formatDate(unit.start_date)}</strong>
+                </span>
+              )}
               {(unit.city || unit.state) && (
                 <span>{[unit.city, unit.state].filter(Boolean).join(', ')}</span>
               )}

@@ -57,6 +57,11 @@
   font-weight: 600;
 }
 
+.tl-start-date {
+  flex-basis: 100%;
+  order: -1;
+}
+
 .tl-countdown {
   font-weight: 700;
   color: var(--accent);
