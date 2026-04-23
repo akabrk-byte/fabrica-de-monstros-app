@@ -9,8 +9,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 500;
+  z-index: 9999;
   padding: 16px;
+  overflow-y: auto;
   animation: pm-fade-in 0.15s ease;
 }
 

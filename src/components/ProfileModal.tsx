@@ -1,4 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../hooks/useProfile'
 import { useProfileContext } from '../contexts/ProfileContext'
@@ -81,7 +82,7 @@ export function ProfileModal({ onClose }: Props) {
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="pm-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
@@ -153,6 +154,7 @@ export function ProfileModal({ onClose }: Props) {
 
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
