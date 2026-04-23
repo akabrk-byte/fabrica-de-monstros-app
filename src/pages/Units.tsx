@@ -228,11 +228,12 @@ export default function Units() {
       navigate(`/units/${unit.id}`)
     } catch (err) {
       console.error('[createUnit] erro:', err)
-      const msg = (err as { message?: string })?.message ?? String(err)
       if (createdUnit) {
-        setCreateError(`Erro ao gerar as tarefas. Tente novamente ou acesse a unidade e use o botão ⚙ para regenerar. (${msg})`)
+        setCreateError(
+          'Erro ao gerar as tarefas. Tente novamente ou acesse a unidade e use o botão ⚙ para regenerar.'
+        )
       } else {
-        setCreateError(`Erro ao criar a unidade: ${msg}`)
+        setCreateError('Erro ao criar a unidade. Tente novamente.')
         setCreatedUnit(null)
       }
     } finally {

@@ -90,8 +90,18 @@ export async function listTaskStats(unitIds: string[]): Promise<TaskStats[]> {
   }))
 }
 
+async function insertUnit(payload: Record<string, unknown>): Promise<Unit> {
+  const { data: created, error } = await supabaseAdmin
+    .from('units')
+    .insert(payload)
+    .select()
+    .single()
+  if (error) throw error
+  return created as Unit
+}
+
 export async function createUnit(data: CreateUnitData): Promise<Unit> {
-  const payload: Record<string, unknown> = {
+  const base: Record<string, unknown> = {
     name:              data.name.trim(),
     slug:              generateSlug(data.name),
     city:              data.city?.trim() || null,
@@ -99,17 +109,18 @@ export async function createUnit(data: CreateUnitData): Promise<Unit> {
     inauguration_date: data.inauguration_date || null,
     notes:             data.notes?.trim() || null,
   }
-  // só inclui start_date se tiver valor — coluna pode não existir ainda no banco
-  if (data.start_date) payload.start_date = data.start_date
 
-  const { data: created, error } = await supabaseAdmin
-    .from('units')
-    .insert(payload)
-    .select()
-    .single()
+  if (data.start_date) {
+    try {
+      return await insertUnit({ ...base, start_date: data.start_date })
+    } catch (err) {
+      // Coluna start_date ainda não existe no banco (migration pendente) — cria sem ela
+      const msg = (err as { message?: string })?.message ?? ''
+      if (!msg.includes('start_date')) throw err
+    }
+  }
 
-  if (error) throw error
-  return created as Unit
+  return await insertUnit(base)
 }
 
 export async function updateUnit(id: string, data: UpdateUnitData): Promise<Unit> {
