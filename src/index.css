@@ -48,6 +48,12 @@ img, video, table, pre, code {
   --shadow-card:   0 4px 20px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
   --shadow-accent: 0 0 24px rgba(229, 57, 0, 0.18);
   --glow-accent:   0 0 0 1px var(--accent-border), 0 4px 20px rgba(229, 57, 0, 0.12);
+  --glow-accent-strong:
+    0 0 0 1px var(--accent-border),
+    0 8px 24px rgba(229, 57, 0, 0.22),
+    0 2px 8px rgba(229, 57, 0, 0.12);
+
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
 
   --sans:    'Inter', system-ui, 'Segoe UI', sans-serif;
   --heading: 'Barlow Condensed', 'Oswald', system-ui, sans-serif;
@@ -162,4 +168,29 @@ code {
 @keyframes barGrow {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
+}
+
+/* ── @property for animatable KPI counter (future-ready) ─────────── */
+@property --kpi-num {
+  syntax: '<integer>';
+  initial-value: 0;
+  inherits: false;
+}
+
+/* ── Global reduced motion ───────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .dash-section,
+  .kpi-card,
+  .kpi-grid,
+  .btn,
+  .unit-row { animation: none !important; }
+  .btn:hover,
+  .btn-primary:hover,
+  .btn-secondary:hover,
+  .kpi-card:hover { transform: none !important; }
 }

@@ -30,16 +30,20 @@
 
 .kpi-card {
   position: relative;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(229, 57, 0, 0.22);
   border-top: 2px solid var(--accent);
   border-radius: 12px;
   padding: 22px 22px 18px;
-  background: linear-gradient(160deg, #141414 0%, #0f0f0f 100%);
+  background: linear-gradient(160deg, #161616 0%, #0f0f0f 100%);
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
+  transition:
+    box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  animation: kpiCardIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 
   &::before {
     content: '';
@@ -47,16 +51,50 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 60px;
-    background: linear-gradient(180deg, rgba(229, 57, 0, 0.04) 0%, transparent 100%);
+    height: 70px;
+    background: linear-gradient(180deg, rgba(229, 57, 0, 0.1) 0%, transparent 100%);
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 35%,
+      rgba(229, 57, 0, 0.07) 50%,
+      transparent 65%
+    );
+    transform: translateX(-200%);
+    transition: transform 0s;
     pointer-events: none;
   }
 
   &:hover {
-    box-shadow: var(--glow-accent);
-    transform: translateY(-2px);
+    box-shadow:
+      0 0 0 1px rgba(229, 57, 0, 0.4),
+      0 16px 40px rgba(0, 0, 0, 0.5),
+      0 4px 16px rgba(229, 57, 0, 0.22);
+    border-color: rgba(229, 57, 0, 0.45);
+    transform: translateY(-4px);
+
+    &::after {
+      transform: translateX(200%);
+      transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+    }
   }
 }
+
+@keyframes kpiCardIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+.kpi-grid > .kpi-card:nth-child(1) { animation-delay: 0ms; }
+.kpi-grid > .kpi-card:nth-child(2) { animation-delay: 90ms; }
+.kpi-grid > .kpi-card:nth-child(3) { animation-delay: 180ms; }
+.kpi-grid > .kpi-card:nth-child(4) { animation-delay: 270ms; }
 
 .kpi-card--danger {
   border-top-color: #ef4444;
@@ -77,10 +115,17 @@
   letter-spacing: -0.02em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  animation: kpiValueReveal 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--card-i, 0) * 90ms + 200ms);
 
   @media (max-width: 640px) {
     font-size: 36px;
   }
+}
+
+@keyframes kpiValueReveal {
+  from { opacity: 0; clip-path: inset(100% 0 0 0); transform: translateY(10px); }
+  to   { opacity: 1; clip-path: inset(0 0 0 0);    transform: translateY(0); }
 }
 
 .kpi-label {
@@ -188,10 +233,13 @@
 /* Row states */
 .unit-row {
   cursor: pointer;
-  transition: background 0.12s;
+
+  & td {
+    transition: background 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 
   &:hover td {
-    background: rgba(255, 255, 255, 0.025);
+    background: rgba(229, 57, 0, 0.09);
   }
 }
 
@@ -377,12 +425,12 @@
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 
   &:last-child { border-bottom: none; }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.025);
+    background: rgba(229, 57, 0, 0.06);
   }
 }
 
@@ -450,4 +498,41 @@
 /* ── Responsive hide ──────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .hide-mobile { display: none; }
+}
+
+/* ── Section entrance — funciona em todos os browsers ────────────── */
+.dash-section {
+  animation: dashSectionIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.dash-section:nth-child(1) { animation-delay: 50ms; }
+.dash-section:nth-child(2) { animation-delay: 150ms; }
+.dash-section:nth-child(3) { animation-delay: 250ms; }
+.dash-section:nth-child(4) { animation-delay: 350ms; }
+
+@keyframes dashSectionIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scroll-driven para seções abaixo do fold (Chrome/Edge 115+) */
+@supports (animation-timeline: view()) {
+  .dash-section + .dash-section {
+    animation: dashRevealScroll linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 70%;
+  }
+
+  @keyframes dashRevealScroll {
+    from {
+      clip-path: inset(15% 0 0 0);
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
