@@ -91,17 +91,20 @@ export async function listTaskStats(unitIds: string[]): Promise<TaskStats[]> {
 }
 
 export async function createUnit(data: CreateUnitData): Promise<Unit> {
+  const payload: Record<string, unknown> = {
+    name:              data.name.trim(),
+    slug:              generateSlug(data.name),
+    city:              data.city?.trim() || null,
+    state:             data.state?.trim() || null,
+    inauguration_date: data.inauguration_date || null,
+    notes:             data.notes?.trim() || null,
+  }
+  // só inclui start_date se tiver valor — coluna pode não existir ainda no banco
+  if (data.start_date) payload.start_date = data.start_date
+
   const { data: created, error } = await supabaseAdmin
     .from('units')
-    .insert({
-      name: data.name.trim(),
-      slug: generateSlug(data.name),
-      city: data.city?.trim() || null,
-      state: data.state?.trim() || null,
-      start_date: data.start_date || null,
-      inauguration_date: data.inauguration_date || null,
-      notes: data.notes?.trim() || null,
-    })
+    .insert(payload)
     .select()
     .single()
 
@@ -114,7 +117,7 @@ export async function updateUnit(id: string, data: UpdateUnitData): Promise<Unit
   if (data.name !== undefined)               patch.name = data.name.trim()
   if (data.city !== undefined)               patch.city = data.city?.trim() || null
   if (data.state !== undefined)              patch.state = data.state?.trim() || null
-  if (data.start_date !== undefined)         patch.start_date = data.start_date || null
+  if (data.start_date)                       patch.start_date = data.start_date
   if (data.inauguration_date !== undefined)  patch.inauguration_date = data.inauguration_date || null
   if (data.status !== undefined)             patch.status = data.status
   if (data.notes !== undefined)              patch.notes = data.notes?.trim() || null
@@ -141,7 +144,13 @@ export async function getUnit(id: string): Promise<Unit> {
 }
 
 export async function deleteUnit(id: string): Promise<void> {
-  // unit_tasks não tem ON DELETE CASCADE, então deleta as tarefas primeiro
+  // Deleta dependências sem ON DELETE CASCADE antes de deletar a unidade
+  const { error: historyError } = await supabaseAdmin
+    .from('task_history')
+    .delete()
+    .eq('unit_id', id)
+  if (historyError) throw historyError
+
   const { error: tasksError } = await supabaseAdmin
     .from('unit_tasks')
     .delete()
