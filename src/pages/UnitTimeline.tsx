@@ -4,12 +4,12 @@ import {
 } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { AppHeader } from '../components/AppHeader'
-import { getUnit, deleteUnit, type Unit } from '../services/unitsService'
+import { getUnit, updateUnit, deleteUnit, type Unit } from '../services/unitsService'
 import {
   listTasksByUnit, updateTaskStatus, deleteTask,
   type Task, type TaskStatus, type TaskCategory,
 } from '../services/tasksService'
-import { seedUnitWithTasks, deleteUnitTasks } from '../services/seedUnit'
+import { GlobalTaskSelectorModal } from '../components/GlobalTaskSelectorModal'
 import { TaskManagerModal } from '../components/TaskManagerModal'
 import { TaskDetailModal } from '../components/TaskDetailModal'
 import { ResponsibleSelector } from '../components/ResponsibleSelector'
@@ -420,15 +420,19 @@ export default function UnitTimeline() {
   const [tmFaseOrder,     setTmFaseOrder]     = useState(0)
   const [tmFaseNome,      setTmFaseNome]      = useState('')
 
-  // ── Regenerar tarefas ────────────────────────────────────────────────
-  const [showRegenConfirm, setShowRegenConfirm] = useState(false)
-  const [regenerating,     setRegenerating]     = useState(false)
-  const [regenError,       setRegenError]       = useState('')
+  // ── Template selector ─────────────────────────────────────────────────
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false)
 
   // ── Excluir unidade ───────────────────────────────────────────────────
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deletingUnit,      setDeletingUnit]      = useState(false)
   const [deleteUnitError,   setDeleteUnitError]   = useState('')
+
+  // ── Editar data de inauguração ────────────────────────────────────────
+  const [editingInaugDate,  setEditingInaugDate]  = useState(false)
+  const [inaugDateInput,    setInaugDateInput]    = useState('')
+  const [savingInaugDate,   setSavingInaugDate]   = useState(false)
+  const [saveInaugDateError, setSaveInaugDateError] = useState('')
 
   // ── Carga ─────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -461,7 +465,7 @@ export default function UnitTimeline() {
       if (e.key === 'Escape') {
         setDetailTask(null)
         setShowTaskManager(false)
-        setShowRegenConfirm(false)
+        setEditingInaugDate(false)
       }
     }
     document.addEventListener('keydown', fn)
@@ -534,31 +538,33 @@ export default function UnitTimeline() {
     }
   }
 
+  // ── Editar data de inauguração ────────────────────────────────────────
+  const startEditInaugDate = () => {
+    setInaugDateInput(unit?.inauguration_date ?? '')
+    setSaveInaugDateError('')
+    setEditingInaugDate(true)
+  }
+
+  const handleSaveInaugDate = async () => {
+    if (!unit) return
+    setSavingInaugDate(true)
+    setSaveInaugDateError('')
+    try {
+      const updated = await updateUnit(unit.id, { inauguration_date: inaugDateInput || undefined })
+      setUnit(updated)
+      setEditingInaugDate(false)
+    } catch {
+      setSaveInaugDateError('Erro ao salvar. Tente novamente.')
+    } finally {
+      setSavingInaugDate(false)
+    }
+  }
+
   // ── Abrir modal de tarefas ────────────────────────────────────────────
   const openAddModal = (faseOrder: number, faseNome: string) => {
     setTmFaseOrder(faseOrder)
     setTmFaseNome(faseNome)
     setShowTaskManager(true)
-  }
-
-  // ── Regenerar tarefas ─────────────────────────────────────────────────
-  const handleRegenerate = async () => {
-    if (!unitId || !unit?.inauguration_date) {
-      setRegenError('Defina uma data de inauguração antes de regenerar.')
-      return
-    }
-    setRegenerating(true)
-    setRegenError('')
-    try {
-      await deleteUnitTasks(unitId)
-      await seedUnitWithTasks(unitId, new Date(unit.inauguration_date))
-      await loadData()
-      setShowRegenConfirm(false)
-    } catch {
-      setRegenError('Erro ao regenerar tarefas. Tente novamente.')
-    } finally {
-      setRegenerating(false)
-    }
   }
 
   // ── Derivados ─────────────────────────────────────────────────────────
@@ -666,8 +672,8 @@ export default function UnitTimeline() {
               </span>
               <button
                 className="tl-regen-btn"
-                onClick={() => { setRegenError(''); setShowRegenConfirm(true) }}
-                title="Regenerar tarefas"
+                onClick={() => setShowTemplateSelector(true)}
+                title="Gerenciar tarefas do template"
               >
                 ⚙
               </button>
@@ -684,10 +690,53 @@ export default function UnitTimeline() {
               {(unit.city || unit.state) && (
                 <span>{[unit.city, unit.state].filter(Boolean).join(', ')}</span>
               )}
-              {unit.inauguration_date && (
-                <span>Inauguração: <strong>{formatDate(unit.inauguration_date)}</strong></span>
+
+              {editingInaugDate ? (
+                <span className="tl-inaug-edit">
+                  <input
+                    type="date"
+                    className="tl-inaug-input"
+                    value={inaugDateInput}
+                    onChange={(e) => { setInaugDateInput(e.target.value); setSaveInaugDateError('') }}
+                    disabled={savingInaugDate}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveInaugDate()
+                      if (e.key === 'Escape') setEditingInaugDate(false)
+                    }}
+                  />
+                  <button
+                    className="tl-inaug-save"
+                    onClick={handleSaveInaugDate}
+                    disabled={savingInaugDate || !inaugDateInput}
+                  >
+                    {savingInaugDate ? '...' : 'Salvar'}
+                  </button>
+                  <button
+                    className="tl-inaug-cancel"
+                    onClick={() => setEditingInaugDate(false)}
+                    disabled={savingInaugDate}
+                  >
+                    Cancelar
+                  </button>
+                  {saveInaugDateError && (
+                    <span className="tl-inaug-error">{saveInaugDateError}</span>
+                  )}
+                </span>
+              ) : (
+                <span className="tl-inaug-display">
+                  Inauguração: <strong>{unit.inauguration_date ? formatDate(unit.inauguration_date) : '—'}</strong>
+                  <button
+                    className="tl-inaug-edit-btn"
+                    onClick={startEditInaugDate}
+                    title="Editar data de inauguração"
+                  >
+                    ✎
+                  </button>
+                </span>
               )}
-              {countdown(unit.inauguration_date) && (
+
+              {!editingInaugDate && countdown(unit.inauguration_date) && (
                 <span className="tl-countdown">{countdown(unit.inauguration_date)}</span>
               )}
             </div>
@@ -783,49 +832,15 @@ export default function UnitTimeline() {
         </div>
       )}
 
-      {/* ── Modal: Confirmar regeneração ───────────────────────────────── */}
-      {showRegenConfirm && (
-        <div
-          className="modal-overlay"
-          onClick={(e) => { if (e.target === e.currentTarget) { setShowRegenConfirm(false) } }}
-        >
-          <div className="modal" role="dialog" aria-modal="true" aria-labelledby="regen-title">
-            <div className="modal-header">
-              <h2 className="modal-title" id="regen-title">Regenerar tarefas?</h2>
-              <button className="modal-close" onClick={() => setShowRegenConfirm(false)} aria-label="Fechar">✕</button>
-            </div>
-            <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6, margin: 0 }}>
-              Isso irá <strong>apagar todas as tarefas atuais</strong> e recriar o template
-              completo de implantação com base na data de inauguração.
-              <br /><br />
-              Tarefas criadas manualmente e alterações de status serão perdidas.
-            </p>
-            {regenError && <p className="modal-error">{regenError}</p>}
-            <div className="modal-actions">
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowRegenConfirm(false)}
-                disabled={regenerating}
-              >
-                Cancelar
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleRegenerate}
-                disabled={regenerating || !unit?.inauguration_date}
-                style={!unit?.inauguration_date ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-              >
-                {regenerating ? 'Regenerando...' : 'Confirmar regeneração'}
-              </button>
-            </div>
-            {!unit?.inauguration_date && (
-              <p style={{ fontSize: '13px', color: '#f59e0b', margin: 0 }}>
-                ⚠ Defina uma data de inauguração na unidade para habilitar a regeneração.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+      {/* ── Modal: Gerenciar tarefas do template ──────────────────────── */}
+      <GlobalTaskSelectorModal
+        isOpen={showTemplateSelector}
+        onClose={() => setShowTemplateSelector(false)}
+        unitId={unit?.id ?? ''}
+        inaugurationDate={unit?.inauguration_date ?? ''}
+        existingTasks={tasks}
+        onTasksAdded={loadData}
+      />
 
       {/* ── Modal: Confirmar exclusão da unidade ──────────────────────── */}
       {showDeleteConfirm && (

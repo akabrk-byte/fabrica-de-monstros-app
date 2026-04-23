@@ -65,6 +65,100 @@
   letter-spacing: 0.04em;
 }
 
+/* ── Edição inline da data de inauguração ─────────────────────────── */
+.tl-inaug-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tl-inaug-edit-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    color: var(--text-h);
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
+
+.tl-inaug-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tl-inaug-input {
+  background: var(--surface-2);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  color: var(--text-h);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 4px 8px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(229, 57, 0, 0.15);
+  }
+
+  &:disabled { opacity: 0.5; }
+}
+
+input[type="date"].tl-inaug-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
+}
+
+.tl-inaug-save {
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+  letter-spacing: 0.03em;
+
+  &:hover:not(:disabled) { background: var(--accent-light); }
+  &:disabled { opacity: 0.45; pointer-events: none; }
+}
+
+.tl-inaug-cancel {
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) { color: var(--text-h); border-color: rgba(255,255,255,0.22); }
+  &:disabled { opacity: 0.45; pointer-events: none; }
+}
+
+.tl-inaug-error {
+  font-size: 12px;
+  color: #f87171;
+}
+
 /* ── Regen button ─────────────────────────────────────────────────── */
 .tl-regen-btn {
   margin-left: auto;

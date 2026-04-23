@@ -133,7 +133,7 @@ export async function updateUnit(id: string, data: UpdateUnitData): Promise<Unit
   if (data.status !== undefined)             patch.status = data.status
   if (data.notes !== undefined)              patch.notes = data.notes?.trim() || null
 
-  const { data: updated, error } = await supabase
+  const { data: updated, error } = await supabaseAdmin
     .from('units')
     .update(patch)
     .eq('id', id)

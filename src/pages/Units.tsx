@@ -5,30 +5,9 @@ import {
   listUnits, listTaskStats, createUnit,
   type Unit, type TaskStats, type CreateUnitData,
 } from '../services/unitsService'
-import { seedUnitWithTasks } from '../services/seedUnit'
-import { TASK_TEMPLATES } from '../data/taskTemplates'
 import '../pages/Home.css'
 import './pages.css'
 import './Units.css'
-
-// ─── Dados de preview das fases ──────────────────────────────────────
-
-interface PhasePreview { fase_order: number; fase_nome: string; count: number }
-
-const PHASE_PREVIEW: PhasePreview[] = (() => {
-  const map = new Map<number, PhasePreview>()
-  for (const t of TASK_TEMPLATES) {
-    const entry = map.get(t.fase_order) ?? { fase_order: t.fase_order, fase_nome: t.fase_nome, count: 0 }
-    entry.count++
-    map.set(t.fase_order, entry)
-  }
-  return Array.from(map.values()).sort((a, b) => a.fase_order - b.fase_order)
-})()
-
-const PHASE_PREVIEW_COLORS: Record<number, string> = {
-  0: '#6366f1', 1: '#8b5cf6', 2: '#3b82f6',
-  3: '#f59e0b', 4: '#10b981', 5: '#6b7280',
-}
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -219,10 +198,6 @@ export default function Units() {
       } else {
         unit = await createUnit(form)
         setCreatedUnit(unit)
-      }
-
-      if (unit.inauguration_date) {
-        await seedUnitWithTasks(unit.id, new Date(unit.inauguration_date + 'T00:00:00'))
       }
 
       navigate(`/units/${unit.id}`)
@@ -449,27 +424,9 @@ export default function Units() {
                   </div>
                 </div>
 
-                {/* Preview das tarefas */}
-                <div className="wizard-phases">
-                  <h4 className="wizard-phases-title">
-                    Tarefas que serão criadas
-                    <span className="wizard-phases-total">
-                      {TASK_TEMPLATES.length} tarefas
-                    </span>
-                  </h4>
-                  <div className="wizard-phases-list">
-                    {PHASE_PREVIEW.map((p) => (
-                      <div key={p.fase_order} className="wizard-phase-row">
-                        <span
-                          className="wizard-phase-dot"
-                          style={{ background: PHASE_PREVIEW_COLORS[p.fase_order] ?? '#6b7280' }}
-                        />
-                        <span className="wizard-phase-name">{p.fase_nome}</span>
-                        <span className="wizard-phase-count">{p.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+                  A unidade será criada sem tarefas. Use o botão <strong>⚙</strong> na timeline para adicionar tarefas do template ou criar tarefas personalizadas.
+                </p>
 
                 {createError && <p className="modal-error">{createError}</p>}
 
@@ -501,11 +458,7 @@ export default function Units() {
                     disabled={creating}
                     style={{ marginLeft: 'auto' }}
                   >
-                    {creating
-                      ? 'Criando unidade e gerando tarefas...'
-                      : createdUnit
-                        ? 'Tentar gerar tarefas'
-                        : '✓ Criar unidade'}
+                    {creating ? 'Criando...' : '✓ Criar unidade'}
                   </button>
                 </div>
               </div>
